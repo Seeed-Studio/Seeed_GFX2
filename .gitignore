@@ -1,0 +1,61 @@
+# ── 编辑器 & IDE ──
+.vscode/
+.history/
+*.swp
+*~
+*.code-workspace
+
+# ── 编译产物 ──
+*.o
+*.a
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# ── 构建目录 ──
+build/
+bin/
+obj/
+.pio/
+.pioenvs/
+
+# ── Python 缓存 ──
+__pycache__/
+*.pyc
+*.pyo
+
+# ── Arduino 调试文件 ──
+debug.cfg
+debug_custom.json
+*.svd
+
+# ── Windows 系统文件 ──
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# ── macOS 系统文件 ──
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

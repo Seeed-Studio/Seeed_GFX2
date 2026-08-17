@@ -1,0 +1,5 @@
+Seeed_GFX2 microSD text reader
+
+If this text appears on the 1.47-inch display, the shared LCD/microSD SPI bus is
+working correctly. Long lines should wrap, and the reader can advance through
+multiple text files placed in the card root.
