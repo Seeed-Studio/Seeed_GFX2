@@ -117,4 +117,14 @@ Third-party components included in this project (e.g., fonts, tools) are covered
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Seeed-Studio/Seeed_GFX2&type=Date)](https://star-history.com/#Seeed-Studio/Seeed_GFX2&Date)
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" 
+          srcset="assets/star-history/star-history-dark.svg">
+
+  <source media="(prefers-color-scheme: light)" 
+          srcset="assets/star-history/star-history-light.svg">
+
+  <img src="assets/star-history/star-history-light.svg">
+</picture>
+</p>
