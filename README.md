@@ -114,3 +114,17 @@ Start with [`examples/README.md`](examples/README.md) to choose the exact displa
 This library is original work by Seeed Studio and is licensed under the **MIT License**. See [LICENSE](LICENSE) for the full text.
 
 Third-party components included in this project (e.g., fonts, tools) are covered by their own licenses. Refer to the [LICENSE](LICENSE) file for details.
+
+## Star History
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" 
+          srcset="assets/star-history/star-history-dark.svg">
+
+  <source media="(prefers-color-scheme: light)" 
+          srcset="assets/star-history/star-history-light.svg">
+
+  <img src="assets/star-history/star-history-light.svg">
+</picture>
+</p>
