@@ -34,7 +34,7 @@ void setup() {
     display.setTextSize(3);
     display.drawString("3.97 inch monochrome ePaper", 125, 155);
     display.setTextSize(1);
-    display.drawString("800 x 480  |  SSD1677  |  1 bpp", 160, 190);
+    display.drawString("800 x 480  | 1 bpp", 160, 190);
 
     // Hello World card
     display.drawRoundRect(90, 220, 620, 160, 16, TFT_BLACK);
