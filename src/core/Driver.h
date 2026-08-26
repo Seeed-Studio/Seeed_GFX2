@@ -70,11 +70,17 @@ public:
     /** Return true when setTemperature() changes the controller waveform. */
     virtual bool supportsTemperatureCompensation() const { return false; }
 
-    /** Last sticky error raised by a synchronous driver operation. */
-    DriverOperationError lastOperationError() const { return _operationError; }
+    /** Last sticky error raised by a synchronous driver operation.
+     *  Virtual so composite drivers (e.g. auto-detect wrappers) can report
+     *  the state of the delegated child driver. */
+    virtual DriverOperationError lastOperationError() const {
+        return _operationError;
+    }
 
     /** Clear the sticky operation error before starting a new high-level action. */
-    void clearOperationError() { _operationError = DriverOperationError::None; }
+    virtual void clearOperationError() {
+        _operationError = DriverOperationError::None;
+    }
 
     // Initialization
 
@@ -254,6 +260,12 @@ public:
     virtual void setResetPin(int pin) {
         _hardwareResetPin = static_cast<int8_t>(pin);
     }
+
+    /** Raw chip-ID byte read back by an auto-detect probe, or -1 when the
+     *  driver does not probe. Lets sketches read a composite driver's probe
+     *  result through the plain IDriver interface (Arduino targets build
+     *  with -fno-rtti, so dynamic_cast-based downcasts are unavailable). */
+    virtual int probedChipId() const { return -1; }
 
 protected:
     /** Record the first failure in a high-level operation. */

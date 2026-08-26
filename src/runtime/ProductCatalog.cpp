@@ -43,11 +43,12 @@
 #include "../driver/epaper/Driver_SSD1681.h"
 #include "../driver/epaper/Driver_SSD1683.h"
 #include "../driver/epaper/Driver_SSD1677.h"
+#include "../driver/epaper/Driver_SSD2677.h"
+#include "../driver/epaper/Driver_Sticky_Auto.h"
 #include "../driver/epaper/Driver_ED2208.h"
 #include "../driver/epaper/Driver_JD79660.h"
 #include "../driver/epaper/Driver_JD79667.h"
 #include "../driver/epaper/Driver_JD79676.h"
-#include "../driver/epaper/Driver_SSD2677.h"
 #include "../driver/epaper/Driver_ED103TC2.h"
 #include "../driver/epaper/Driver_T133A01.h"
 #include "../touch/Touch_CHSCX6X.h"
@@ -501,16 +502,13 @@ const ProductEntry kProducts[] = {
         &createConfigured<Board_reTerminal_E1004, Driver_T133A01, Panel_EPaper>, nullptr
     },
     {
+        // Production mixes SSD1677 and SSD2677 units randomly; the driver
+        // resolves the fitted controller at begin() time with the firmware
+        // probe (reset -> 0x70 -> read -> 0x07 = SSD2677).
         {Seeed_Product::RETERMINAL_Sticky, "seeed.reterminal.sticky.r1",
          "reTerminal Sticky", 800, 480, 1, ProductPanelMode::Default},
-        &createConfigured<Board_reTerminal_Sticky, Driver_SSD1677, Panel_EPaper>, nullptr
+        &createConfigured<Board_reTerminal_Sticky, Driver_Sticky_Auto, Panel_EPaper>, nullptr
     },
-    {
-        {Seeed_Product::RETERMINAL_Sticky_BWRY, "seeed.reterminal.sticky_bwry.r1",
-         "reTerminal Sticky BWRY", 800, 480, 4, ProductPanelMode::BWRY},
-        &createConfigured<Board_reTerminal_Sticky_BWRY, Driver_SSD2677, Panel_EPaper>, nullptr
-    },
-
     // Wio Terminal
     {
         {Seeed_Product::WIO_TERMINAL_PRODUCT, "seeed.wio_terminal.r1", "Wio Terminal",

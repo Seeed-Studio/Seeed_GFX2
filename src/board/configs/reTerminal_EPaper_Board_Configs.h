@@ -28,8 +28,14 @@ struct reTerminal_EPaper_CommonConfig {
                               -1, -1, 13);
     }
 
+    // Sticky shares the microSD SPI bus: SCK=13, MOSI=14, and MISO=12 is the
+    // read-back line. The panel itself is normally write-only, but the
+    // production unit ships with either an SSD1677 or an SSD2677 (random per
+    // unit); the firmware-style auto-detect probe (reset -> 0x70 -> read one
+    // byte -> 0x07 means SSD2677) needs this MISO, as does the SSD2677
+    // register temperature read.
     static BoardPinConfig stickyPins(bool horizontalMirror) {
-        return BoardPinConfig(15, 16, 17, -1, 14, -1, 13,
+        return BoardPinConfig(15, 16, 17, -1, 14, 12, 13,
                               -1, -1, 18, 47, -1, -1,
                               horizontalMirror);
     }
@@ -76,11 +82,14 @@ struct Config_reTerminal_E1004_Board : reTerminal_EPaper_CommonConfig {
 struct Config_reTerminal_Sticky_Board : reTerminal_EPaper_CommonConfig {
     static const char* name() { return "reTerminal Sticky"; }
     static BoardPinConfig pins() { return stickyPins(true); }
-};
-
-struct Config_reTerminal_Sticky_BWRY_Board : reTerminal_EPaper_CommonConfig {
-    static const char* name() { return "reTerminal Sticky BWRY"; }
-    static BoardPinConfig pins() { return stickyPins(false); }
+    // The inherited sdChipSelectPin/sdDetectPin/sdEnablePin (GPIO14/15/16)
+    // belong to the E1001-generation microSD slot; on the Sticky those GPIOs
+    // are the display MOSI/CS/DC. The Sticky microSD CS is GPIO8, and the
+    // card shares MISO=GPIO12 with the panel, so the board layer must
+    // deselect it before the auto-detect probe reads over that line.
+    static constexpr int8_t sdChipSelectPin() { return 8; }
+    static constexpr int8_t sdDetectPin() { return -1; }
+    static constexpr int8_t sdEnablePin() { return -1; }
 };
 
 #endif // SEEED_GFX_RETERMINAL_EPAPER_BOARD_CONFIGS_H

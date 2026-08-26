@@ -473,15 +473,33 @@ struct Config_reTerminal_E1004_T133A01 {
 };
 
 // --- reTerminal Sticky ---
-// 产品: reTerminal Sticky (10.1" ePaper, 800x480)
-// 当前库实现: 1-bit 黑白；不把面板可能的灰阶能力宣称为已实现 API。
+// 产品: reTerminal Sticky (3.94" ePaper, 800x480)
 // 芯片: SSD1677
+// 注意: 受元器件供货影响，Sticky 产线混用 SSD1677 与 SSD2677 两种模组，
+// 每台设备只装其中一种，买到哪一种随机。两种芯片共用同一套
+// SPI/DC/CS/BUSY/RESET 接线。推荐走产品目录路径
+// (Seeed_Product::RETERMINAL_Sticky)，其 Driver_Sticky_Auto 会在 begin()
+// 时按固件同款探测自动选择驱动: 复位 -> 发 0x70 -> 读回 1 字节 ->
+// 0x07 为 SSD2677，否则 SSD1677。本配置仅用于已知装 SSD1677 的
+// begin<Board, Config> 直连写法。
 struct Config_reTerminal_Sticky_SSD1677 {
     using Driver = Driver_SSD1677;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 800;
     static constexpr uint16_t height     = 480;
     static constexpr uint8_t  colorDepth = 1;
+};
+
+// --- reTerminal Sticky (SSD2677 变体) ---
+// 产品: reTerminal Sticky (3.94" ePaper, 800x480)
+// 芯片: SSD2677
+struct Config_reTerminal_Sticky_SSD2677 {
+    using Driver = Driver_SSD2677;
+    using Panel  = Panel_EPaper;
+    static constexpr uint16_t width      = 800;
+    static constexpr uint16_t height     = 480;
+    static constexpr uint8_t  colorDepth = 1;
+    static constexpr bool     mirror     = true;
 };
 
 #endif // SEEED_GFX_SEEED_PANEL_CONFIGS_H

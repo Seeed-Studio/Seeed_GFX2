@@ -31,7 +31,6 @@ namespace Seeed_Product {
         RETERMINAL_E1003,
         RETERMINAL_E1004,
         RETERMINAL_Sticky,
-        RETERMINAL_Sticky_BWRY,
         WIO_TERMINAL_PRODUCT,
         XIAO_EPAPER_7INCH5_JD79686B,
         XIAO_LCD_0INCH96,       // XIAO 0.96" LCD Board (ST7789 80x160)

@@ -107,12 +107,25 @@ const EPaperCommandSequence kJD79686BDefaultFullSequence = {
 };
 
 const uint8_t kSSD2677DefaultFull[] = {
-    3, 0x00, 0x2B, 0x29, 5, 0x06, 0x0F, 0x8B, 0x93, 0xC1,
-    2, 0x50, 0x37, 2, 0x30, 0x08, EPaperWaveformToken::Resolution, 0x61,
+    // Aligned byte-for-byte with the Sticky product firmware
+    // (seeed_epaper/driver/ssd2677.c, ssd2677_init_otp). Deviations from the
+    // legacy Seeed_GFX sequence: PSR {0x2F,0x0E} (was 0x2B,0x29), CDI 0x77
+    // (was 0x37), 0xE7=0xC1 (was 0xA4), and RES hard-coded to 800x680.
+    // The panel scans 680 gate lines even though only 800x480 are visible;
+    // writing RES=800x480 here shifts the image up and garbles the bottom.
+    // No PON (0x04) here: the firmware powers the panel inside each refresh
+    // (Driver_SSD2677::update), not in init. WaitBusy mirrors the firmware's
+    // wait_ready() calls (after reset, after PSR, and at the end of init).
+    3, 0x00, 0x2F, 0x0E,
+    EPaperWaveformToken::WaitBusy,
+    5, 0x06, 0x0F, 0x8B, 0x93, 0xC1,
+    2, 0xE7, 0xC1, 2, 0x30, 0x08, 2, 0x50, 0x77,
     9, 0x62, 0x76, 0x76, 0x76, 0x5A, 0x9D, 0x8A, 0x76, 0x62,
-    5, 0x65, 0x00, 0x00, 0x00, 0x00, 2, 0xE0, 0x10,
-    2, 0xE7, 0xA4, 2, 0xE9, 0x01, 1, 0x04,
-    EPaperWaveformToken::WaitBusy, EPaperWaveformToken::End,
+    5, 0x61, 0x03, 0x20, 0x02, 0xA8,
+    2, 0xE0, 0x10, 5, 0x65, 0x00, 0x00, 0x00, 0x00,
+    2, 0xE9, 0x01,
+    EPaperWaveformToken::WaitBusy,
+    EPaperWaveformToken::End,
 };
 const EPaperCommandSequence kSSD2677DefaultFullSequence = {
     kSSD2677DefaultFull, sizeof(kSSD2677DefaultFull)
@@ -333,7 +346,7 @@ const EPaperWaveformProfile kEPaperPanelDefs[] = {
      &kSSD1683DefaultFullSequence, &kSSD1683DefaultFullSequence,
      &kSSD1683DefaultPartialSequence,
      &kSSD1683DefaultGraySequence},
-    {"default", "SSD2677 800x480", "SSD2677", 800, 480, 4,
+    {"default", "SSD2677 800x480", "SSD2677", 800, 480, 1,
      EPAPER_WAVEFORM_FULL, EPaperWaveformStorage::CommandSequence,
      &kSSD2677DefaultFullSequence, nullptr, nullptr, nullptr},
     {"default", "UC8179 648x480 OTP full", "UC8179", 648, 480, 1,
