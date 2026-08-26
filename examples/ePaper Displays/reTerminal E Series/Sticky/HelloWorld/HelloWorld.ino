@@ -1,7 +1,7 @@
 /**
- * Product: reTerminal Sticky
- * Display: 7.5 inch monochrome ePaper, 800x480, SSD1677
- * Wiki: https://wiki.seeedstudio.com/reterminal_e10xx_main_page/
+  * Product: reTerminal Sticky
+ * Display: 3.97 inch monochrome ePaper, 800x480, SSD1677/SSD2677
+ * Wiki: https://www.seeedstudio.com/sticky/docs/quick-start
  */
 #include <Seeed_GFX.h>
 
@@ -32,7 +32,7 @@ void setup() {
     // Subtitle
     display.setTextColor(TFT_BLACK);
     display.setTextSize(3);
-    display.drawString("7.5 inch monochrome ePaper", 125, 155);
+    display.drawString("3.97 inch monochrome ePaper", 125, 155);
     display.setTextSize(1);
     display.drawString("800 x 480  |  SSD1677  |  1 bpp", 160, 190);
 
