@@ -62,8 +62,8 @@ struct DitherConfig {
     DitherPalette palette         = PAL_E6;
     float         gamma           = 1.0f;       // x' = pow(x, 1/gamma): <1 darkens, >1 brightens
     bool          invert          = false;      // BW only: flip 0/1
-    bool          serpentine      = true;       // snake-scan for error diffusion
-    bool          legacyClamp     = false;      // true = narrow [0,255] clamp (legacy behavior); false = wide [-255,510] (default, better for photos)
+    bool          serpentine      = false;       // snake-scan for error diffusion
+    bool          legacyClamp     = true;      // true = narrow [0,255] clamp (legacy behavior); false = wide [-255,510] (default, better for photos)
     float         errorDiffusionStrength = 1.0f; // 0 = nearest-color only (no diffusion), 1 = full diffusion (default)
     float         saturationBoost = 0.0f;       // range [0,1]: 0 = none, 0.3 = moderate
     float         darknessBias    = 0.0f;       // range [0,0.5]: darken before dither; compensates for bright ePaper

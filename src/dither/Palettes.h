@@ -98,12 +98,12 @@ inline const Rgb* gray16Rgb() {
 static constexpr int E6_COUNT = 6;
 
 static const Rgb kE6_Rgb[E6_COUNT] = {
-    {255, 255, 255},   // 0: WHITE  (code 0x0)
-    { 29, 185,  84},   // 1: GREEN  (code 0x2)
-    {229,  57,  53},   // 2: RED    (code 0x6)
-    {255, 216,   0},   // 3: YELLOW (code 0xB)
-    {  0,  76, 255},   // 4: BLUE   (code 0xD)
-    {  0,   0,   0},   // 5: BLACK  (code 0xF)
+    {250, 250, 250},   // 0: WHITE  (code 0x0)
+    { 45, 160,  60},   // 1: GREEN  (code 0x2)
+    {225,  55,  70},   // 2: RED    (code 0x6)
+    {245, 225,   35},   // 3: YELLOW (code 0xB)
+    {  0,  138, 225},   // 4: BLUE   (code 0xD)
+    {  17,   16,   14},   // 5: BLACK  (code 0xF)
 };
 
 static const uint8_t kE6_Code[E6_COUNT] = {0x0, 0x2, 0x6, 0xB, 0xD, 0xF};
