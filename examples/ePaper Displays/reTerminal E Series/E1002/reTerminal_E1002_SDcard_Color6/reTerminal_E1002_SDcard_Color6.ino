@@ -2,7 +2,7 @@
  * reTerminal E1002 -- SD card image to 6-color e-paper (800x480, ED2208).
  *
  * Pipeline mirrors online_img2bitmap_.html with screen=e6:
- *   SD JPG/BMP/PNG -> RGB888 -> Floyd-Steinberg E6 dither
+ *   SD JPG/BMP/PNG -> RGB888 -> E6 dither (full DitherConfig parameter set)
  *               -> packed 4bpp -> pushImage4BPP into the ED2208 frame buffer.
  *
  * 6-color palette (matches the HTML tool):
@@ -74,6 +74,11 @@ static constexpr int    PIN_DBG_TX   = 43;
 static const char* IMAGE_PATH = "/img/demo.jpg";
 
 // ----- dither ----------------------------------------------------------------
+// The full DitherConfig parameter set. Every initial value is the library
+// default from src/dither/Dither.h -- edit and re-flash to tune.
+// (reTerminal_E1002_SDcard_Color6_DitherCompare offers the same parameter set
+// with live serial tuning: g/s/d/t/e/w/p/l/m/k.)
+
 // Dithering algorithm. Same options as online_img2bitmap_.html. Pick one:
 //   DITHER_NONE     -- nearest-color, no dithering (fastest, blocky)
 //   DITHER_BAYER8   -- 8x8 ordered Bayer (no error buffer; safest on big panels)
@@ -84,8 +89,53 @@ static const char* IMAGE_PATH = "/img/demo.jpg";
 //   DITHER_PALETTE_MIX -- two-color mixing for out-of-gamut colors
 static const DitherMethod DITHER_METHOD = DITHER_FS;
 
-// Brightness gamma. 1.0 = neutral, >1.0 darkens, <1.0 brightens. Typical 0.8 - 1.6.
+// Brightness gamma. x' = pow(x, 1/gamma): >1.0 brightens, <1.0 darkens.
+// 1.0 = neutral.
 static const float DITHER_GAMMA = 1.0f;
+
+// Serpentine (snake) scan: reduces directional streaks in error diffusion.
+static const bool DITHER_SERPENTINE = false;
+
+// Error-buffer clamp: true = narrow [0,255] clamp (library default, cleaner
+// pure-color boundaries); false = wide [-255,510] (often better for photos).
+static const bool DITHER_LEGACY_CLAMP = true;
+
+// Saturation boost [0, 1]: compensates for the reduced palette. 0 = off.
+static const float DITHER_SAT_BOOST = 0.0f;
+
+// Darkness bias [0, 0.5]: darkens before dithering; compensates bright panels.
+// 0 = off.
+static const float DITHER_DARKNESS_BIAS = 0.0f;
+
+// Contrast: 1.0 = no change; >1 increases, <1 reduces.
+static const float DITHER_CONTRAST = 1.0f;
+
+// Error diffusion strength [0, 1]: 0 = nearest-color only, 1 = full diffusion.
+static const float DITHER_DIFF_STRENGTH = 1.0f;
+
+// Warmth [-1, 1]: positive = warmer (more red), negative = cooler (more blue).
+static const float DITHER_WARMTH = 0.0f;
+
+// Color distance metric. Pick one:
+//   METRIC_RGB     -- plain RGB distance (default)
+//   METRIC_REDMEAN -- perceptual redmean; deprecated for E6 (collapses cyan
+//                     toward green), kept for experiments only
+static const ColorMetric DITHER_COLOR_METRIC = METRIC_RGB;
+
+// ----- calibrated palette (optional) ------------------------------------------
+// The library's built-in E6 palette (src/dither/Palettes.h) is already
+// calibrated. Only if you measured YOUR panel with a colorimeter, fill in the
+// RGB values below and set USE_CALIBRATED_PALETTE to 1 to override it.
+#define USE_CALIBRATED_PALETTE 0
+static const Rgb kCalibratedE6_Rgb[6] = {
+  {255, 255, 255},   // WHITE  (code 0x0) -- replace with measured
+  { 29, 185,  84},   // GREEN  (code 0x2) -- replace with measured
+  {229,  57,  53},   // RED    (code 0x6) -- replace with measured
+  {255, 216,   0},   // YELLOW (code 0xB) -- replace with measured
+  {  0,  76, 255},   // BLUE   (code 0xD) -- replace with measured
+  {  0,   0,   0},   // BLACK  (code 0xF) -- replace with measured
+};
+static const uint8_t kCalibratedE6_Code[6] = {0x0, 0x2, 0x6, 0xB, 0xD, 0xF};
 
 // ----- layout: position -----------------------------------------------------
 // Where on the panel the image snaps to. Pick one of these 9 anchors in a
@@ -297,11 +347,32 @@ static bool show_image_on_panel(RgbImage* img) {
   if (!idx) idx = (uint8_t*)malloc(npx);
   if (!idx) { LOG.println(TAG " OOM idx -- aborting"); return false; }
 
-  LOG.printf(TAG " dithering E6 with %s, gamma=%.2f ...\n",
-             dither_method_name(DITHER_METHOD), DITHER_GAMMA);
+  DitherConfig cfg;
+  cfg.method                 = DITHER_METHOD;
+  cfg.palette                = PAL_E6;
+  cfg.gamma                  = DITHER_GAMMA;
+  cfg.serpentine             = DITHER_SERPENTINE;
+  cfg.legacyClamp            = DITHER_LEGACY_CLAMP;
+  cfg.saturationBoost        = DITHER_SAT_BOOST;
+  cfg.darknessBias           = DITHER_DARKNESS_BIAS;
+  cfg.contrast               = DITHER_CONTRAST;
+  cfg.errorDiffusionStrength = DITHER_DIFF_STRENGTH;
+  cfg.warmth                 = DITHER_WARMTH;
+  cfg.colorMetric            = DITHER_COLOR_METRIC;
+#if USE_CALIBRATED_PALETTE
+  cfg.customPaletteRgb   = kCalibratedE6_Rgb;
+  cfg.customPaletteCode  = kCalibratedE6_Code;
+  cfg.customPaletteCount = 6;
+#endif
+
+  LOG.printf(TAG " dithering E6: %s g=%.2f serp=%d clamp=%d s=%.2f d=%.2f t=%.2f e=%.2f w=%.2f%s\n",
+             dither_method_name(DITHER_METHOD), DITHER_GAMMA,
+             DITHER_SERPENTINE ? 1 : 0, DITHER_LEGACY_CLAMP ? 1 : 0,
+             DITHER_SAT_BOOST, DITHER_DARKNESS_BIAS, DITHER_CONTRAST,
+             DITHER_DIFF_STRENGTH, DITHER_WARMTH,
+             USE_CALIBRATED_PALETTE ? " customPal" : "");
   const uint32_t t0 = millis();
-  if (!dither_image(img->pixels, W, H, PAL_E6, DITHER_METHOD,
-                    DITHER_GAMMA, /*invert=*/false, idx)) {
+  if (!dither_image_ex(img->pixels, W, H, cfg, idx)) {
     LOG.println(TAG " dither failed -- aborting");
     free(idx); return false;
   }

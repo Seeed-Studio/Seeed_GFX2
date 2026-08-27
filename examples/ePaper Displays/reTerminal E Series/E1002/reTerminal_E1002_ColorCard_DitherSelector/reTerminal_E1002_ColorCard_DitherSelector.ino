@@ -85,10 +85,19 @@ static int candidateB = -1;
 static int calibrationColor = 0;
 static bool calibrationMode = false;
 
-// --- Live-tunable parameters (serial commands g/s/k) ---
-static float g_gamma       = 1.10f;   // adjustable via g+/g-
-static float g_satBoost    = 0.20f;   // adjustable via s+/s-
-static float g_darknessBias = 0.00f;  // adjustable via k+/k-
+// --- Live-tunable parameters: the FULL DitherConfig set (serial commands) ---
+// Initial values = library defaults from src/dither/Dither.h.
+// Float params step by +/-0.05 (letter / uppercase letter); bool/enum params
+// toggle on a keypress.  'd' resets everything to the library defaults.
+static float g_gamma        = 1.00f;  // g/G   [0.30, 2.50]
+static float g_satBoost     = 0.00f;  // s/S   [0.00, 1.00]
+static float g_darknessBias = 0.00f;  // k/K   [0.00, 0.50]
+static float g_contrast     = 1.00f;  // u/U   [0.05, 3.00] (library-valid (0,3])
+static float g_diffStrength = 1.00f;  // e/E   [0.00, 1.00] 0=nearest only
+static float g_warmth       = 0.00f;  // w/W   [-1.00, 1.00] +warmer/-cooler
+static bool  g_serpentine   = false;  // y/Y   toggle snake scan
+static bool  g_legacyClamp  = true;   // l/L   toggle narrow[0,255]/wide[-255,510]
+static ColorMetric g_colorMetric = METRIC_RGB;  // z/Z toggle RGB/REDMEAN
 
 // --- Per-algorithm ratings (1-5, 0=not yet rated) ---
 static int g_ratings[7] = {0, 0, 0, 0, 0, 0, 0};
@@ -117,15 +126,18 @@ static const uint8_t kCalibratedE6_Code[6] = {0x0, 0x2, 0x6, 0xB, 0xD, 0xF};
 
 static DitherConfig makeConfig(DitherMethod method) {
     DitherConfig cfg;
-    cfg.method = method;
-    cfg.palette = PAL_E6;
-    cfg.gamma = g_gamma;
-    cfg.invert = false;
-    cfg.serpentine = true;
-    cfg.legacyClamp = false; // false=wide[-255,510](default) better for photos; true=narrow[0,255] cleaner pure-color boundaries
-    cfg.saturationBoost = g_satBoost;
-    cfg.darknessBias    = g_darknessBias;
-    cfg.colorMetric = METRIC_RGB;
+    cfg.method                 = method;
+    cfg.palette                = PAL_E6;
+    cfg.gamma                  = g_gamma;
+    cfg.invert                 = false;
+    cfg.serpentine             = g_serpentine;
+    cfg.legacyClamp            = g_legacyClamp;
+    cfg.saturationBoost        = g_satBoost;
+    cfg.darknessBias           = g_darknessBias;
+    cfg.contrast               = g_contrast;
+    cfg.errorDiffusionStrength = g_diffStrength;
+    cfg.warmth                 = g_warmth;
+    cfg.colorMetric            = g_colorMetric;
 #if USE_CALIBRATED_PALETTE
     cfg.customPaletteRgb   = kCalibratedE6_Rgb;
     cfg.customPaletteCode  = kCalibratedE6_Code;
@@ -156,7 +168,13 @@ static void printHelp() {
     LOG.println("  g / G   gamma +0.05 / -0.05");
     LOG.println("  s / S   saturationBoost +0.05 / -0.05");
     LOG.println("  k / K   darknessBias +0.05 / -0.05");
-    LOG.println("  d       reset gamma=1.10, sat=0.20, dark=0.00 to defaults");
+    LOG.println("  u / U   contrast +0.05 / -0.05");
+    LOG.println("  e / E   errorDiffusionStrength +0.05 / -0.05");
+    LOG.println("  w / W   warmth +0.05 / -0.05");
+    LOG.println("  y       toggle serpentine scan");
+    LOG.println("  l       toggle legacyClamp (narrow [0,255] / wide [-255,510])");
+    LOG.println("  z       toggle colorMetric (RGB / REDMEAN)");
+    LOG.println("  d       reset all parameters to library defaults");
     LOG.println();
     LOG.println("  --- Scoring ---");
     LOG.println("  r       rate current algorithm (prompts 1-5)");
@@ -212,15 +230,23 @@ static bool refreshDisplay(const char* pageName) {
 static void drawSelectorHeader(const char* title) {
     char line[128];
 
-    // Clear header area.
-    display.fillRect(0, 0, EPD_WIDTH, 32, TFT_WHITE);
+    // Clear header area (two lines: title + full live parameter values).
+    display.fillRect(0, 0, EPD_WIDTH, 52, TFT_WHITE);
     display.setTextDatum(TL_DATUM);
     display.setTextColor(TFT_BLACK);
 
-    // All info on one line: title + gamma + sat + dark.
-    snprintf(line, sizeof(line), "%s  g=%.2f  s=%.2f  d=%.2f",
-             title, g_gamma, g_satBoost, g_darknessBias);
-    display.drawString(line, 8, 2, 4);
+    // Line 1: page title.
+    display.drawString(title, 8, 2, 4);
+
+    // Line 2: live values of all 9 tunable parameters, so the panel always
+    // shows what the serial commands have set.
+    snprintf(line, sizeof(line),
+             "g=%.2f s=%.2f d=%.2f t=%.2f e=%.2f w=%.2f serp=%d clamp=%d %s",
+             g_gamma, g_satBoost, g_darknessBias, g_contrast,
+             g_diffStrength, g_warmth, g_serpentine ? 1 : 0,
+             g_legacyClamp ? 1 : 0,
+             g_colorMetric == METRIC_RGB ? "RGB" : "REDMEAN");
+    display.drawString(line, 8, 34, 2);
 }
 
 // ----- SD card photo loading -------------------------------------------------
@@ -337,8 +363,11 @@ static bool renderMethodPage(int page) {
                (unsigned long)dither_working_memory_bytes(
                    EPD_WIDTH, PAL_E6, info.method),
                (unsigned long)ditherContext.workingMemoryCapacity());
-    LOG.printf(TAG " params: gamma=%.2f sat=%.2f dark=%.2f serpentine=true metric=RGB\n",
-               g_gamma, g_satBoost, g_darknessBias);
+    LOG.printf(TAG " params: gamma=%.2f sat=%.2f dark=%.2f serp=%d clamp=%d t=%.2f e=%.2f w=%.2f metric=%s\n",
+               g_gamma, g_satBoost, g_darknessBias,
+               g_serpentine ? 1 : 0, g_legacyClamp ? 1 : 0,
+               g_contrast, g_diffStrength, g_warmth,
+               g_colorMetric == METRIC_RGB ? "RGB" : "REDMEAN");
     LOG.printf(TAG " suggested use: %s\n", info.useCase);
     return refreshDisplay(info.name);
 }
@@ -428,11 +457,15 @@ static void printOutputConfig() {
     LOG.println("cfg.palette = PAL_E6;");
     LOG.printf("cfg.gamma = %.2ff;\n", g_gamma);
     LOG.println("cfg.invert = false;");
-    LOG.println("cfg.serpentine = true;");
-    LOG.println("cfg.legacyClamp = false;  // true = narrow [0,255] clamp (legacy behavior)");
+    LOG.printf("cfg.serpentine = %s;\n", g_serpentine ? "true" : "false");
+    LOG.printf("cfg.legacyClamp = %s;\n", g_legacyClamp ? "true" : "false");
     LOG.printf("cfg.saturationBoost = %.2ff;\n", g_satBoost);
     LOG.printf("cfg.darknessBias = %.2ff;\n", g_darknessBias);
-    LOG.println("cfg.colorMetric = METRIC_RGB;");
+    LOG.printf("cfg.contrast = %.2ff;\n", g_contrast);
+    LOG.printf("cfg.errorDiffusionStrength = %.2ff;\n", g_diffStrength);
+    LOG.printf("cfg.warmth = %.2ff;\n", g_warmth);
+    LOG.printf("cfg.colorMetric = %s;\n",
+               g_colorMetric == METRIC_RGB ? "METRIC_RGB" : "METRIC_REDMEAN");
     LOG.println();
     LOG.flush();
 }
@@ -440,8 +473,10 @@ static void printOutputConfig() {
 static void printRatingSummary() {
     LOG.println();
     LOG.println("================ Rating Summary =================");
-    LOG.printf("  Parameters: gamma=%.2f  satBoost=%.2f  darknessBias=%.2f  serpentine=true\n",
-               g_gamma, g_satBoost, g_darknessBias);
+    LOG.printf("  Parameters: gamma=%.2f  satBoost=%.2f  darknessBias=%.2f  serp=%d  clamp=%d  contrast=%.2f  diff=%.2f  warmth=%.2f\n",
+               g_gamma, g_satBoost, g_darknessBias,
+               g_serpentine ? 1 : 0, g_legacyClamp ? 1 : 0,
+               g_contrast, g_diffStrength, g_warmth);
     LOG.println();
     LOG.println("  #  Algorithm      Rating  Best for");
     LOG.println("  -  -----------    ------  ----------------------------");
@@ -562,11 +597,72 @@ static void handleSelectorCommand(char command) {
             LOG.printf(TAG " darknessBias -> %.2f\n", g_darknessBias);
             if (currentPage >= 1) renderCurrentPage();
             break;
+        case 'u':
+            g_contrast += 0.05f;
+            if (g_contrast > 3.0f) g_contrast = 3.0f;
+            LOG.printf(TAG " contrast -> %.2f\n", g_contrast);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'U':
+            g_contrast -= 0.05f;
+            if (g_contrast < 0.05f) g_contrast = 0.05f;
+            LOG.printf(TAG " contrast -> %.2f\n", g_contrast);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'e':
+            g_diffStrength += 0.05f;
+            if (g_diffStrength > 1.0f) g_diffStrength = 1.0f;
+            LOG.printf(TAG " errorDiffusionStrength -> %.2f\n", g_diffStrength);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'E':
+            g_diffStrength -= 0.05f;
+            if (g_diffStrength < 0.0f) g_diffStrength = 0.0f;
+            LOG.printf(TAG " errorDiffusionStrength -> %.2f\n", g_diffStrength);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'w':
+            g_warmth += 0.05f;
+            if (g_warmth > 1.0f) g_warmth = 1.0f;
+            LOG.printf(TAG " warmth -> %.2f\n", g_warmth);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'W':
+            g_warmth -= 0.05f;
+            if (g_warmth < -1.0f) g_warmth = -1.0f;
+            LOG.printf(TAG " warmth -> %.2f\n", g_warmth);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'y': case 'Y':
+            g_serpentine = !g_serpentine;
+            LOG.printf(TAG " serpentine -> %d\n", g_serpentine ? 1 : 0);
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'l': case 'L':
+            g_legacyClamp = !g_legacyClamp;
+            LOG.printf(TAG " legacyClamp -> %d (%s)\n", g_legacyClamp ? 1 : 0,
+                       g_legacyClamp ? "narrow [0,255]" : "wide [-255,510]");
+            if (currentPage >= 1) renderCurrentPage();
+            break;
+        case 'z': case 'Z':
+            g_colorMetric = (g_colorMetric == METRIC_RGB) ? METRIC_REDMEAN
+                                                          : METRIC_RGB;
+            LOG.printf(TAG " colorMetric -> %s\n",
+                       g_colorMetric == METRIC_RGB
+                           ? "RGB" : "REDMEAN (deprecated for E6)");
+            if (currentPage >= 1) renderCurrentPage();
+            break;
         case 'd': case 'D':
-            g_gamma = 1.10f;
-            g_satBoost = 0.20f;
+            g_gamma        = 1.00f;
+            g_satBoost     = 0.00f;
             g_darknessBias = 0.00f;
-            LOG.println(TAG " params reset to defaults (g=1.10, s=0.20, d=0.00)");
+            g_contrast     = 1.00f;
+            g_diffStrength = 1.00f;
+            g_warmth       = 0.00f;
+            g_serpentine   = false;
+            g_legacyClamp  = true;
+            g_colorMetric  = METRIC_RGB;
+            LOG.println(TAG " all parameters reset to library defaults");
             if (currentPage >= 1) renderCurrentPage();
             break;
 
