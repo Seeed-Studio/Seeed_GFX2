@@ -114,16 +114,53 @@ static constexpr int METHOD_COUNT = sizeof(METHODS) / sizeof(METHODS[0]);
 
 // ----- Helpers ---------------------------------------------------------------
 
+// ----- Dither parameters (full DitherConfig set) -----------------------------
+// Every initial value is the library default from src/dither/Dither.h.
+// Edit and re-flash to tune.
+
+static const float DITHER_GAMMA         = 1.0f;  // x'=pow(x,1/gamma): >1 brightens
+static const bool  DITHER_SERPENTINE    = false; // snake scan for error diffusion
+static const bool  DITHER_LEGACY_CLAMP  = true;  // true=narrow[0,255](default); false=wide[-255,510]
+static const float DITHER_SAT_BOOST     = 0.0f;  // [0,1] saturation boost; 0 = off
+static const float DITHER_DARKNESS_BIAS = 0.0f;  // [0,0.5] pre-darken; 0 = off
+static const float DITHER_CONTRAST      = 1.0f;  // 1.0 = no change
+static const float DITHER_DIFF_STRENGTH = 1.0f;  // 1 = full diffusion, 0 = nearest only
+static const float DITHER_WARMTH        = 0.0f;  // [-1,1]: +warmer / -cooler
+static const ColorMetric DITHER_COLOR_METRIC = METRIC_RGB; // METRIC_REDMEAN deprecated for E6
+
+// ----- Calibrated palette (optional) ------------------------------------------
+// The library's built-in E6 palette (src/dither/Palettes.h) is already
+// calibrated. Only if you measured YOUR panel with a colorimeter, fill in the
+// RGB values below and set USE_CALIBRATED_PALETTE to 1 to override it.
+#define USE_CALIBRATED_PALETTE 0
+static const Rgb kCalibratedE6_Rgb[6] = {
+    {255, 255, 255},   // WHITE  (code 0x0) -- replace with measured
+    { 29, 185,  84},   // GREEN  (code 0x2) -- replace with measured
+    {229,  57,  53},   // RED    (code 0x6) -- replace with measured
+    {255, 216,   0},   // YELLOW (code 0xB) -- replace with measured
+    {  0,  76, 255},   // BLUE   (code 0xD) -- replace with measured
+    {  0,   0,   0},   // BLACK  (code 0xF) -- replace with measured
+};
+static const uint8_t kCalibratedE6_Code[6] = {0x0, 0x2, 0x6, 0xB, 0xD, 0xF};
+
 static DitherConfig makeConfig(DitherMethod m) {
     DitherConfig cfg;
-    cfg.method          = m;
-    cfg.palette         = PAL_E6;
-    cfg.gamma           = 1.1f;
-    cfg.serpentine      = true;
-    cfg.legacyClamp     = false; // false=wide[-255,510](default) better for photos; true=narrow[0,255] cleaner pure-color boundaries
-    cfg.saturationBoost = 0.2f;
-    cfg.darknessBias    = 0.0f;
-    cfg.colorMetric     = METRIC_RGB;
+    cfg.method                 = m;
+    cfg.palette                = PAL_E6;
+    cfg.gamma                  = DITHER_GAMMA;
+    cfg.serpentine             = DITHER_SERPENTINE;
+    cfg.legacyClamp            = DITHER_LEGACY_CLAMP;
+    cfg.saturationBoost        = DITHER_SAT_BOOST;
+    cfg.darknessBias           = DITHER_DARKNESS_BIAS;
+    cfg.contrast               = DITHER_CONTRAST;
+    cfg.errorDiffusionStrength = DITHER_DIFF_STRENGTH;
+    cfg.warmth                 = DITHER_WARMTH;
+    cfg.colorMetric            = DITHER_COLOR_METRIC;
+#if USE_CALIBRATED_PALETTE
+    cfg.customPaletteRgb   = kCalibratedE6_Rgb;
+    cfg.customPaletteCode  = kCalibratedE6_Code;
+    cfg.customPaletteCount = 6;
+#endif
     return cfg;
 }
 
@@ -204,7 +241,7 @@ static bool show_method(int index, const MethodInfo& info, uint8_t* packedBuf) {
     display.drawString(title, EPD_WIDTH / 2, 48, 4);
 
     // Config details below the card.
-    display.drawString("gamma=1.10  sat=0.20  serpentine",
+    display.drawString("library defaults (edit DITHER_* constants to tune)",
                        EPD_WIDTH / 2, CARD_Y + CARD_H + 16, 2);
     display.drawString(info.bestFor,
                        EPD_WIDTH / 2, CARD_Y + CARD_H + 50, 2);
@@ -243,7 +280,7 @@ void setup() {
     LOG.printf("[sys] panel     : %d x %d\n", EPD_WIDTH, EPD_HEIGHT);
     LOG.printf("[sys] card      : %d x %d at (%d,%d)\n",
                CARD_W, CARD_H, CARD_X, CARD_Y);
-    LOG.println("[sys] tuning     : visual baseline; palette RGB is not measured");
+    LOG.println("[sys] tuning     : library defaults; edit DITHER_* constants to tune");
     LOG.println(TAG " methods:");
     for (int i = 0; i < METHOD_COUNT; ++i) {
         LOG.printf("  %d. %-11s -- %s\n", i + 1, METHODS[i].name,

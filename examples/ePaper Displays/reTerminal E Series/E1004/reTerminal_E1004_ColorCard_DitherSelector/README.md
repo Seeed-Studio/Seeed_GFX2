@@ -18,7 +18,7 @@
 
 **典型流程**：先在色卡上淘汰不合适的算法，再在照片上挑最顺眼的。
 
-> 扩散算法（FS/ATKINSON/BURKES/SIERRA3）在纯色块上收敛到几乎相同的混色比例，色卡上只有**品红**（ATKINSON 能逃出红锁）和**青色**（白点比例不同）能区分它们。颗粒度、肤色平滑度、天空过渡的差异只在照片上才看得见。
+> 扩散算法（FS/ATKINSON/BURKES/SIERRA3）在纯色块上收敛到几乎相同的混色比例——校准调色板下品红全部锁红、青色全部 100% 蓝，色卡上**已无法区分它们**。颗粒度、肤色平滑度、天空过渡的差异只在照片上才看得见。
 
 ## 硬件与串口
 
@@ -48,19 +48,21 @@
 
 按 `1`–`7` 翻完 7 页，盯住这 5 个关键区域：
 
+> 下表预期值基于库内置校准调色板 + 全部默认参数（窄钳位）实测；色卡色块本身用理论 RGB 值合成。
+
 | 关键区域 | 位置 | 怎么看 | 预期 |
 |---|---|---|---|
-| 6 原色纯度 | 第 1 行 | 纯色块是否纯净无杂点 | 除 PALMIX 红块有 3% 黄点，其余 100% |
-| 青色 | 第 3 行 CYAN | 应是蓝主导（不是绿主导） | FS/BURKES/SIERRA3 蓝 95–98%；ATKINSON 蓝 70% 白 7% |
-| 橄榄绿 | 第 4 行 OLIVE | 黄绿黑混色，**无红污染** | FS/BURKES/SIERRA3 红 <1% |
-| 品红 | 第 4 行最左 | 应是深紫（R+B 混） | PALMIX R64/B36；ATKINSON R72/B16；其余纯红 |
+| 6 原色纯度 | 第 1 行 | 纯色块是否纯净无杂点 | NONE/ATKINSON 100%；FS/BURKES/SIERRA3 绿块 ~11–13% 蓝点、黄块 ~3–4% 红点；PALMIX 红块 ~3% 黄点、绿块 ~14% 蓝点、蓝块 ~2% 黑点 |
+| 青色 | 第 3 行 CYAN | 应是蓝主导（不是绿主导） | NONE/扩散方法 100% 蓝；PALMIX 蓝 94% + 白 6% |
+| 橄榄绿 | 第 4 行 OLIVE | 默认窄钳位下扩散方法会混红（已知取舍，非 bug） | NONE 纯绿；PALMIX 黄 50%/黑 50%；FS/ATKINSON/BURKES/SIERRA3 红 ~35%。按 `l` 切到宽钳位后应为红 <1% 的黄绿黑混色 |
+| 品红 | 第 4 行最左 | E6 色域无蓝紫，看谁能给出最亮的混色 | 扩散方法（含 ATKINSON）全部锁纯红；PALMIX 红 67% + 白 33% |
 | 渐变 | 左右两侧 | 有无条带/网格 | NONE 有条带，BAYER8 有网格，其余平滑 |
 
 每页按 `r` 评分（1–5），全部看完按 `m` 看汇总。
 
 ### 第三步：照片调参
 
-按 `i` 切到 SD 照片模式，用 `g/G`（gamma）、`s/S`（饱和度）、`k/K`（暗度偏移）微调参数，每调一次自动重渲染。满意后按 `d` 恢复默认（1.10/0.20/0.00）。
+按 `i` 切到 SD 照片模式，用串口命令微调参数——数值参数 `g/G`（gamma）、`s/S`（饱和度）、`k/K`（暗度偏移）、`u/U`（对比度）、`e/E`（扩散强度）、`w/W`（色温），开关参数 `y`（蛇形）、`l`（钳位）、`z`（度量）——每调一次自动重渲染。满意后按 `d` 一键恢复全部库默认。
 
 ### 第四步：A/B 对比
 
@@ -68,17 +70,21 @@
 
 ### 第五步：输出配置
 
-按 `o`，串口输出可直接复制的 `DitherConfig`：
+按 `o`，串口输出可直接复制的完整 `DitherConfig`（含全部参数当前值）：
 
 ```cpp
 DitherConfig cfg;
 cfg.method = DITHER_FS;
 cfg.palette = PAL_E6;
-cfg.gamma = 1.15f;            // 你调出的最优值
+cfg.gamma = 1.15f;                  // 你调出的最优值
 cfg.invert = false;
-cfg.serpentine = true;
-cfg.saturationBoost = 0.25f;  // 你调出的最优值
-cfg.darknessBias = 0.10f;     // 你调出的最优值
+cfg.serpentine = false;
+cfg.legacyClamp = true;
+cfg.saturationBoost = 0.25f;
+cfg.darknessBias = 0.10f;
+cfg.contrast = 1.00f;
+cfg.errorDiffusionStrength = 1.00f;
+cfg.warmth = 0.00f;
 cfg.colorMetric = METRIC_RGB;
 ```
 
@@ -89,10 +95,10 @@ cfg.colorMetric = METRIC_RGB;
 | **NONE** | 纯色块纯净，渲染最快 | 渐变有明显条带 |
 | **BAYER8** | 图案稳定不抖动，边缘清晰 | 有规律网格纹理 |
 | **FS** | 经典通用，4 抖点扩散最快 | 品红会锁红，颗粒感较重 |
-| **ATKINSON** | 纹理最轻，品红能逃出红锁 (R72/B16) | 只扩散 75% 误差，暗区可能偏亮 |
+| **ATKINSON** | 纹理最轻，原色块 100% 纯净 | 只扩散 75% 误差，暗区可能偏亮；品红现在也锁红（理论调色板时代能逃出） |
 | **BURKES** | 2 行缓冲省内存，比 FS 平滑 | 品红会锁红，颗粒略多于 SIERRA3 |
 | **SIERRA3** | 颗粒最细，渐变过渡平滑 | 3 行缓冲占内存，品红会锁红 |
-| **PALETTE_MIX** | 离群色最准——品红 R64/B36 深紫 | 有序纹理，纯色块有 3% 杂点 |
+| **PALETTE_MIX** | 离群色最准——品红 红 67% + 白 33% | 有序纹理，纯色块有 3–14% 杂点 |
 
 每种算法在纹理、颜色准确度、内存占用和渲染速度上各有取舍。**不确定选什么？** 从 SIERRA3 或 FS 开始，在照片模式下调参后和 ATKINSON、PALETTE_MIX 对比
 
@@ -107,7 +113,13 @@ cfg.colorMetric = METRIC_RGB;
 | `g` / `G` | gamma +0.05 / -0.05 |
 | `s` / `S` | saturationBoost +0.05 / -0.05 |
 | `k` / `K` | darknessBias +0.05 / -0.05 |
-| `d` | 恢复默认参数 (g=1.10, s=0.20, d=0.00) |
+| `u` / `U` | contrast +0.05 / -0.05 |
+| `e` / `E` | errorDiffusionStrength +0.05 / -0.05 |
+| `w` / `W` | warmth +0.05 / -0.05 |
+| `y` | 切换蛇形扫描 |
+| `l` | 切换窄/宽钳位 |
+| `z` | 切换颜色度量 RGB/REDMEAN |
+| `d` | 全部参数复位为库默认 |
 | `r` / `m` | 评分 1-5 / 打印汇总 |
 | `f` / `a` / `b` / `t` / `x` | 候选标记 / 显示 A / 显示 B / 切换 / 清空 |
 | `o` | 输出当前 DitherConfig |
@@ -116,21 +128,33 @@ cfg.colorMetric = METRIC_RGB;
 
 校准模式中 `1`–`6` 选色，`n`/`p`/空格 切换。
 
-## 参数范围
+## 参数全集
 
-| 参数 | 默认 | 范围 | 作用 |
-|---|---|---|---|
-| `gamma` | 1.10 | 0.30 ~ 2.50 | 整体亮度曲线（>1 变亮，<1 变暗） |
-| `saturationBoost` | 0.20 | 0.00 ~ 1.00 | 颜色鲜艳度（越高越鲜艳） |
-| `darknessBias` | 0.00 | 0.00 ~ 0.50 | 暗区补偿（>0 让阴影更亮） |
+全部 9 个 `DitherConfig` 参数都支持**串口实时调参**，初始值为库默认值（`src/dither/Dither.h`）。每调一次自动重新抖动并刷新当前页。
 
-当前固定 `serpentine=true`、`METRIC_RGB`。
+| 参数 | 默认 | 范围 | 命令 | 作用 |
+|---|---|---|---|---|
+| `gamma` | 1.00 | 0.30 ~ 2.50 | `g` / `G` | 整体亮度曲线（>1 变亮，<1 变暗） |
+| `saturationBoost` | 0.00 | 0.00 ~ 1.00 | `s` / `S` | 颜色鲜艳度（越高越鲜艳） |
+| `darknessBias` | 0.00 | 0.00 ~ 0.50 | `k` / `K` | 暗区补偿（>0 让阴影更亮） |
+| `contrast` | 1.00 | 0.05 ~ 3.00 | `u` / `U` | 对比度，1.0=不变 |
+| `errorDiffusionStrength` | 1.00 | 0.00 ~ 1.00 | `e` / `E` | 误差扩散强度，0=最近色直出 |
+| `warmth` | 0.00 | -1.00 ~ 1.00 | `w` / `W` | 色温，+偏暖 / -偏冷 |
+| `serpentine` | false | 开关 | `y` | 切换蛇形扫描（减轻方向性条纹） |
+| `legacyClamp` | true | 开关 | `l` | 切换窄钳位 [0,255] / 宽钳位 [-255,510] |
+| `colorMetric` | METRIC_RGB | 开关 | `z` | 切换 RGB / REDMEAN（REDMEAN 已对 E6 弃用，仅实验用） |
+
+按 `d` 一键复位全部参数到库默认。
+
+屏幕标题栏第二行同时显示全部 9 个参数的当前实际值，串口调参后不用回看终端就能在面板上确认当前设置。屏上缩写按 `DitherConfig` 字段名（`d`=darknessBias、`t`=contrast），与本示例键位 `k`/`u` 不同，注意区分。
+
+> 键位说明：`e`/`w`/`l` 与 DitherCompare 示例相同；contrast/serpentine/metric 在 DitherCompare 里用 `t`/`p`/`m`，本示例这三个键另有用途（A/B 切换、上一页、评分汇总），故改用 `u`/`y`/`z`。
 
 ## 自定义调色板
 
 **情况 A：校准同一块 E6 面板**（最常见）
 
-用色度计在校准模式 (`c` 命令) 量出 6 色实测 RGB，填入 `kCalibratedE6_Rgb`，在 `makeConfig()` 中打开 `#define USE_CALIBRATED_PALETTE 1`。码字还是那 6 个——只让引擎知道真实 RGB 以便量化更准。
+用色度计在校准模式 (`c` 命令) 量出 6 色实测 RGB，填入 `kCalibratedE6_Rgb`，并把文件顶部的 `#define USE_CALIBRATED_PALETTE` 改成 `1`。码字还是那 6 个——只让引擎知道真实 RGB 以便量化更准。注意：库内置 E6 调色板已经是校准值，只有你自己面板的实测值才值得打开这个开关。
 
 > 如果没有色度计，宁可不开校准（用默认 RGB），也不要填错的值。
 
