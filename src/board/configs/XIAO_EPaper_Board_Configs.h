@@ -54,7 +54,8 @@ struct Config_XIAO_EPaper_Breakout_Board : XIAO_EPaper_CommonConfig {
 
 struct Config_XIAO_EPaper_EE02_Board : XIAO_EPaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EE02"; }
-    // EE02 exposes the second chip select required by the T133A01 panel.
+    // EE02 exposes the second chip select required by the dual-controller
+    // T133A01 and GDEB0709E01 panels.
     static BoardPinConfig pins() { return esp32DisplayPins(10, -1, 41); }
 };
 

@@ -375,6 +375,9 @@ const EPaperWaveformProfile kEPaperPanelDefs[] = {
     {"default", "T133A01 existing default", "T133A01", 0, 0, 4,
      EPAPER_WAVEFORM_FULL, EPaperWaveformStorage::BuiltIn,
      nullptr, nullptr, nullptr, nullptr},
+    {"default", "GDEB0709E01 7.09inch Spectra6", "GDEB0709E01", 0, 0, 4,
+     EPAPER_WAVEFORM_FULL, EPaperWaveformStorage::BuiltIn,
+     nullptr, nullptr, nullptr, nullptr},
 };
 
 const size_t kEPaperPanelDefCount = sizeof(kEPaperPanelDefs) / sizeof(kEPaperPanelDefs[0]);

@@ -51,6 +51,7 @@
 #include "../driver/epaper/Driver_JD79676.h"
 #include "../driver/epaper/Driver_ED103TC2.h"
 #include "../driver/epaper/Driver_T133A01.h"
+#include "../driver/epaper/Driver_GDEB0709E01.h"
 #include "../touch/Touch_CHSCX6X.h"
 #include "../board/boards/SenseCAP_Products.h"
 #include "../driver/tft/Driver_SPD2010.h"
@@ -456,6 +457,16 @@ const ProductEntry kProducts[] = {
         {Seeed_Product::XIAO_EPAPER_13INCH3_C, "seeed.xiao.epaper_13in3_color.r1",
          "XIAO ePaper 13.3 Color", 1200, 1600, 4, ProductPanelMode::Colorful},
         &createConfigured<Board_XIAO_EPaper_EE02, Driver_T133A01, Panel_EPaper>, nullptr
+    },
+    {
+        // Good Display GDEB0709E01 (7.09" Spectra 6, NT61522+EK73601) reuses
+        // the EE02 dual-chip-select wiring; the driver keeps the T133A01
+        // register set byte for byte (vendor divergent values documented in
+        // the driver source as fallback).
+        {Seeed_Product::XIAO_EPAPER_7INCH09_C, "seeed.xiao.epaper_7in09_color.r1",
+         "XIAO ePaper 7.09 Color", 1200, 1600, 4, ProductPanelMode::Colorful,
+         0, 0, EPaperColorSystem::Spectra6, 6, 0},
+        &createConfigured<Board_XIAO_EPaper_EE02, Driver_GDEB0709E01, Panel_EPaper>, nullptr
     },
 
     // XIAO BWRY ePaper displays

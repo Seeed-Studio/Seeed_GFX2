@@ -39,6 +39,7 @@ namespace Seeed_Product {
         SENSECAP_WATCHER,
         SENSECAP_INDICATOR_GX,
         SENSECAP_INDICATOR_DX,
+        XIAO_EPAPER_7INCH09_C,  // XIAO 7.09" Spectra 6 colorful (GDEB0709E01, default board EE02)
         CUSTOM,
     };
 }

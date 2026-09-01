@@ -57,6 +57,7 @@ class Driver_JD79660;
 class Driver_ED2208;
 class Driver_ED103TC2;
 class Driver_T133A01;
+class Driver_GDEB0709E01;
 
 // Panel forward declarations
 class Panel_EPaper;
@@ -333,6 +334,25 @@ struct Config_XIAO_EPaper_13inch3_Colorful_T133A01 {
     static constexpr uint16_t width      = 1200;
     static constexpr uint16_t height     = 1600;
     static constexpr uint8_t  colorDepth = 4;
+    static constexpr PanelMode panelMode() { return PanelMode::Colorful; }
+};
+
+// --- XIAO ePaper 7.09" 6色彩色 ---
+// 面板:GDEB0709E01 (E Ink Spectra 6, 1200x1600)
+// 驱动 IC : NT61522 (PVT61522) x1 + EK73601 x1，
+// 与 13.3" T133A01 同族架构：双芯片/双 CS，每行数据拆左右半行分写两颗 IC，
+// 波形烧在 COG OTP（主机不下载 LUT）。六种原生颜色: 黑/白/红/黄/绿/蓝。
+// 双 CS 为硬性要求：XIAO 侧复用 EE02 扩展板（暴露第二路 CS）。
+struct Config_XIAO_EPaper_7inch09_Colorful_GDEB0709E01 {
+    using Driver = Driver_GDEB0709E01;
+    using Panel  = Panel_EPaper;
+    static constexpr uint16_t width      = 1200;
+    static constexpr uint16_t height     = 1600;
+    static constexpr uint8_t  colorDepth = 4;
+    static constexpr uint8_t  nativeColorCount = 6;
+    static constexpr uint8_t  nativeGrayLevels = 0;
+    static constexpr EPaperColorSystem colorSystem =
+        EPaperColorSystem::Spectra6;
     static constexpr PanelMode panelMode() { return PanelMode::Colorful; }
 };
 
