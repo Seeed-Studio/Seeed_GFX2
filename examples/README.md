@@ -1,4 +1,4 @@
-# Seeed_GFX2 examples
+# Seeed_GFX examples
 
 The example tree follows the Seeed product/board/panel matrix:
 
@@ -93,9 +93,12 @@ Compile-time LCD Board aliases are collected in
 
 ## ePaper product examples
 
-All small XIAO ePaper panels in this tree use the **EE04** display board
-(ESP32-S3). Panels are grouped under
-`ePaper Displays/Expansion Board Series/ESP32 Series/EE04/<panel>`.
+XIAO ePaper panels in this tree attach through the XIAO ePaper expansion
+boards (ESP32-S3), not a single board: most single chip-select panels use
+EE04, the 10.3 inch monochrome panel uses EE03, and the dual-COG Spectra 6
+panels (13.3 inch T133A01, 7.09 inch GDEB0709E01) use EE02 because they
+need the board's second display chip select. Panels are grouped under
+`ePaper Displays/Expansion Board Series/ESP32 Series/<board>/<panel>`.
 
 | Board | Panel demonstrated | Library selection |
 |---|---|---|
@@ -104,6 +107,7 @@ All small XIAO ePaper panels in this tree use the **EE04** display board
 | EE04 | 7.5 inch monochrome | `XIAO_EPAPER_7INCH5` |
 | EE04 | 7.3 inch E Ink Spectra 6 | `XIAO_EPAPER_7INCH3_C` |
 | EE02 | 13.3 inch E Ink Spectra 6 | `XIAO_EPAPER_13INCH3_C` |
+| EE02 | 7.09 inch E Ink Spectra 6 | `XIAO_EPAPER_7INCH09_C` |
 | EE03 | 10.3 inch monochrome | `XIAO_EPAPER_10INCH3` |
 | reTerminal E1001 | 7.5 inch monochrome | `RETERMINAL_E1001` |
 | reTerminal E1002 | 7.3 inch E Ink Spectra 6 | `RETERMINAL_E1002` |
@@ -113,8 +117,9 @@ All small XIAO ePaper panels in this tree use the **EE04** display board
 Every ePaper sketch renders the whole frame first and calls `refresh()` once,
 so initialization, communication, allocation, and BUSY-timeout failures remain
 visible to the sketch.
-Large panels require an ESP32-S3 build with PSRAM enabled. EE02 and reTerminal
-E1004 use T133A01 panels and therefore require the board's second display chip
+Large panels require an ESP32-S3 build with PSRAM enabled. EE02 panels
+(T133A01, GDEB0709E01) and the reTerminal E1004 T133A01 panel are
+dual-controller designs and therefore require the board's second display chip
 select; they cannot be replaced with a normal single-CS ePaper adapter.
 
 reTerminal E1001-E1004 display initialization uses the official HSPI host and
