@@ -12,6 +12,13 @@
  * (<=15 C -> 0xF1, otherwise 0xFA) and the 4bpp framebuffer mapped to the
  * controller's 2bpp gray pixel codes; init and the 0x04/0x12/0x02 drive
  * phase are shared with the monochrome refresh.
+ * Partial refresh follows ssd2677_refresh()'s partial path: the controller
+ * has no window registers, so wakePartial() re-inits and latches the
+ * temperature-selected partial waveform, Panel_EPaper's window data is
+ * stitched into a full-frame "current" copy, and updatePartial() streams the
+ * whole frame as an interleaved old/new difference (pack_interleave) before
+ * driving 0x12 -- leaving the panel powered, since the firmware skips the
+ * 0x02 power-off in partial mode (sleep() powers down afterwards).
  */
 
 #include "Driver_SSD2677.h"
@@ -19,7 +26,9 @@
 
 Driver_SSD2677::Driver_SSD2677(uint16_t w, uint16_t h, int8_t busyPin)
     : _init_width(w), _init_height(h), _busyPin(busyPin),
-      _refreshPowered(false) {
+      _refreshPowered(false), _partialActive(false),
+      _partialPrev(nullptr), _partialCur(nullptr),
+      _winX0(0), _winY0(0), _winX1(0), _winY1(0) {
     _width = w; _height = h;
 }
 
@@ -62,6 +71,27 @@ void Driver_SSD2677::latchFullWaveform() {
     else if (temp <= 20) waveform = 0xEB;
     else if (temp <= 30) waveform = 0xEE;
     else                 waveform = 0xF1;
+    _bus->writeCommand(0xE0);
+    _bus->writeData(0x12);
+    _bus->writeCommand(0xE6);
+    _bus->writeData(waveform);
+    _bus->writeCommand(0xA5);
+    busyWait();
+    delay(10);
+}
+
+// Firmware ssd2677_partial_waveform_for_temperature +
+// ssd2677_latch_partial_waveform: the 3D97 V2 "Fast" partial waveform picks
+// from four temperature buckets (0x08/0x0F/0x19/0x23) and is latched with
+// the same 0xE0/0xE6/0xA5 sequence and trailing 10 ms settle as the full
+// latch. readPanelTemperature() already filters dead/invalid reads to 25 C.
+void Driver_SSD2677::latchPartialWaveform() {
+    const uint8_t temp = readPanelTemperature();
+    uint8_t waveform;
+    if (temp <= 10)      waveform = 0x08;
+    else if (temp <= 20) waveform = 0x0F;
+    else if (temp <= 30) waveform = 0x19;
+    else                 waveform = 0x23;
     _bus->writeCommand(0xE0);
     _bus->writeData(0x12);
     _bus->writeCommand(0xE6);
@@ -121,6 +151,23 @@ static inline void ssd2677ExpandMonoByte(uint8_t mono, uint8_t& o0,
     }
 }
 
+// Firmware pack_interleave: one 1bpp byte from the previous (old) frame and
+// one from the current (new) frame become two bytes of 2-bit transition
+// pairs (old<<1 | new): 0b00 white->white, 0b01 white->black, 0b10
+// black->white, 0b11 black->black. o0 carries pixels 0-3, o1 pixels 4-7.
+static inline void ssd2677PackInterleave(uint8_t prev, uint8_t cur,
+                                         uint8_t& o0, uint8_t& o1) {
+    o0 = 0;
+    o1 = 0;
+    for (uint8_t bit = 0; bit < 8; bit++) {
+        const uint8_t pair =
+            static_cast<uint8_t>((((prev >> (7 - bit)) & 1) << 1) |
+                                 ((cur >> (7 - bit)) & 1));
+        if (bit < 4) o0 |= static_cast<uint8_t>(pair << (6 - bit * 2));
+        else         o1 |= static_cast<uint8_t>(pair << (14 - bit * 2));
+    }
+}
+
 static inline uint8_t ssd2677ReverseBits8(uint8_t b) {
     b = static_cast<uint8_t>(((b & 0xF0) >> 4) | ((b & 0x0F) << 4));
     b = static_cast<uint8_t>(((b & 0xCC) >> 2) | ((b & 0x33) << 2));
@@ -131,6 +178,7 @@ static inline uint8_t ssd2677ReverseBits8(uint8_t b) {
 bool Driver_SSD2677::init(IBus& bus) {
     _bus = &bus;
     _refreshPowered = false;
+    _partialActive = false; // defensive: wakePartial() re-arms it explicitly
     if (_busyPin >= 0) pinMode(_busyPin, INPUT);
     hardwareReset(20, 50);
     busyWait();
@@ -207,7 +255,13 @@ void Driver_SSD2677::setRotation(uint8_t m) {
 void Driver_SSD2677::invertDisplay(bool) {}
 void Driver_SSD2677::displayOn()  { update(); }
 void Driver_SSD2677::displayOff() {}
-void Driver_SSD2677::setAddrWindow(uint16_t, uint16_t, uint16_t, uint16_t) {}
+void Driver_SSD2677::setAddrWindow(uint16_t xs, uint16_t ys,
+                                   uint16_t xe, uint16_t ye) {
+    // The controller has no window registers (firmware set_window is a
+    // no-op); the rectangle is recorded for updatePartial(), which stitches
+    // pushed window data into the full-frame diff copies.
+    _winX0 = xs; _winY0 = ys; _winX1 = xe; _winY1 = ye;
+}
 void Driver_SSD2677::writePixel(uint16_t) {}
 void Driver_SSD2677::writePixels(const uint16_t*, size_t) {}
 void Driver_SSD2677::writeFill(uint16_t, size_t) {}
@@ -231,7 +285,7 @@ void Driver_SSD2677::wake() {
 void Driver_SSD2677::update() {
     // Firmware refresh: power on (if not already), drive display (0x12),
     // then power off (0x02) after every full refresh. (Only partial mode
-    // skips the power-off in the firmware; partial is not implemented.)
+    // skips the power-off in the firmware; see updatePartial().)
     if (!_refreshPowered) {
         _bus->writeCommand(0x04);
         busyWait();
@@ -244,6 +298,16 @@ void Driver_SSD2677::update() {
     _bus->writeData(0x00);
     busyWait();
     _refreshPowered = false;
+
+    // The displayed frame is now _partialCur; advance the partial-diff
+    // baseline so the next partial refresh diffs minimally. On a BUSY
+    // timeout the baseline keeps the last known displayed frame (_partialCur
+    // retains the intended one), mirroring Panel_EPaper's own snapshot rule.
+    if (_partialPrev && _partialCur &&
+        lastOperationError() == DriverOperationError::None) {
+        memcpy(_partialPrev, _partialCur,
+               static_cast<size_t>(_init_width / 8) * _init_height);
+    }
 }
 
 void Driver_SSD2677::pushColors(const uint8_t* colors, uint16_t w,
@@ -295,6 +359,142 @@ void Driver_SSD2677::pushColorsFlip(const uint8_t* colors, uint16_t w,
 
 void Driver_SSD2677::pushOldColors(const uint8_t*, uint16_t, uint16_t) {}
 void Driver_SSD2677::pushOldColorsFlip(const uint8_t*, uint16_t, uint16_t) {}
+
+// Panel_EPaper routes every full-frame monochrome push through the len-based
+// overrides (it performs the horizontal mirroring itself). A full refresh
+// pushes the previous frame -- still the displayed one -- immediately before
+// the new frame, so capture that order: _partialPrev keeps the last known
+// displayed frame, _partialCur the intended one. Buffers are created lazily,
+// which costs partial-refresh users nothing extra in the full-refresh code
+// path they already run.
+void Driver_SSD2677::ensurePartialBuffers() {
+    if (_partialPrev && _partialCur) return;
+    const size_t frame_bytes =
+        static_cast<size_t>(_init_width / 8) * _init_height;
+    if (!_partialPrev) {
+        _partialPrev = static_cast<uint8_t*>(malloc(frame_bytes));
+    }
+    if (!_partialCur) {
+        _partialCur = static_cast<uint8_t*>(malloc(frame_bytes));
+    }
+    if (!_partialPrev || !_partialCur) {
+        free(_partialPrev); _partialPrev = nullptr;
+        free(_partialCur);  _partialCur  = nullptr;
+        return;
+    }
+    // Fresh pair starts all-white, matching the panel's own baseline for a
+    // display that has not been refreshed since power-on. If allocation
+    // only succeeds at a later retry, a previous baseline may be white even
+    // though content is displayed; the diff then re-drives same-polarity
+    // transitions, which converges visually (white pixels are only ever
+    // driven white). Full-refresh pushes overwrite both copies anyway.
+    memset(_partialPrev, 0x00, frame_bytes);
+    memset(_partialCur, 0x00, frame_bytes);
+}
+
+void Driver_SSD2677::patchPartialWindow(const uint8_t* data, size_t len) {
+    if (!data || !_partialCur) return;
+    // Both the window (setAddrWindow) and the pushed bytes are already in
+    // physical orientation: Panel_EPaper maps rotations and applies the
+    // horizontal mirror before calling pushNewColors.
+    const uint16_t w_bytes =
+        static_cast<uint16_t>((_winX1 - _winX0 + 1U) / 8U);
+    const uint16_t h = static_cast<uint16_t>(_winY1 - _winY0 + 1U);
+    const size_t expected = static_cast<size_t>(w_bytes) * h;
+    if (w_bytes == 0 || len < expected) return;
+    const uint16_t stride = _init_width / 8;
+    for (uint16_t row = 0; row < h; ++row) {
+        memcpy(_partialCur +
+                   static_cast<size_t>(_winY0 + row) * stride +
+                   (_winX0 / 8),
+               data + static_cast<size_t>(row) * w_bytes, w_bytes);
+    }
+}
+
+void Driver_SSD2677::pushOldColors(const uint8_t* data, size_t len) {
+    const size_t frame_bytes =
+        static_cast<size_t>(_init_width / 8) * _init_height;
+    if (!_partialActive && data && len >= frame_bytes) {
+        ensurePartialBuffers();
+        if (_partialPrev) memcpy(_partialPrev, data, frame_bytes);
+    }
+}
+
+void Driver_SSD2677::pushNewColors(const uint8_t* data, size_t len) {
+    const size_t frame_bytes =
+        static_cast<size_t>(_init_width / 8) * _init_height;
+    if (_partialActive) {
+        // Partial session: window-sized data stitched into the diff copy.
+        patchPartialWindow(data, len);
+        return;
+    }
+    // Never stream a short buffer as a full frame; the full path only ever
+    // receives frame_bytes from Panel_EPaper.
+    if (!data || len < frame_bytes) return;
+    ensurePartialBuffers();
+    if (_partialCur) memcpy(_partialCur, data, frame_bytes);
+    pushColors(data, _init_width, _init_height);
+}
+
+void Driver_SSD2677::wakePartial() {
+    ensurePartialBuffers();
+    // sleep() deep-sleeps the controller after every panel session, so each
+    // partial refresh re-runs the power-on init exactly like wake().
+    init(*_bus);
+    if (!_partialPrev || !_partialCur) {
+        // Memory exhausted: leave _partialActive unset so the panel's small
+        // window push is dropped by the short-buffer guard above instead of
+        // being streamed as a truncated full frame.
+        return;
+    }
+    latchPartialWaveform();
+    _partialActive = true;
+}
+
+void Driver_SSD2677::updatePartial() {
+    if (!_partialActive) return;
+    _partialActive = false;
+
+    // Firmware ssd2677_write_full_diff_framebuffer_1bpp(): the controller
+    // has no window registers, so a partial refresh streams the FULL frame
+    // through DTM1 as interleaved old/new transition pairs -- untouched
+    // pixels get a no-op pair (0b00/0b11), changed ones drive the latched
+    // partial waveform.
+    const uint16_t stride = _init_width / 8;
+    const size_t frame_bytes =
+        static_cast<size_t>(stride) * _init_height;
+    _bus->writeCommand(0x10);
+    uint8_t out[512];
+    size_t out_len = 0;
+    for (size_t i = 0; i < frame_bytes; i++) {
+        uint8_t o0, o1;
+        ssd2677PackInterleave(_partialPrev[i], _partialCur[i], o0, o1);
+        out[out_len++] = o0;
+        out[out_len++] = o1;
+        if (out_len == sizeof(out)) {
+            _bus->writeData(out, out_len);
+            out_len = 0;
+        }
+    }
+    if (out_len) _bus->writeData(out, out_len);
+
+    // Drive without the 0x02 power-off: the firmware keeps the panel powered
+    // across consecutive partial refreshes (sleep() powers down instead).
+    if (!_refreshPowered) {
+        _bus->writeCommand(0x04);
+        busyWait();
+        _refreshPowered = true;
+    }
+    _bus->writeCommand(0x12);
+    _bus->writeData(0x00);
+    busyWait();
+
+    // Advance the baseline only when the physical refresh completed; a BUSY
+    // timeout keeps the last known displayed frame for the next diff.
+    if (lastOperationError() == DriverOperationError::None) {
+        memcpy(_partialPrev, _partialCur, frame_bytes);
+    }
+}
 
 // Firmware update_ssd2677_gray4_region + ssd2677_write_full_framebuffer_gray4:
 // unpack the 4bpp framebuffer (high nibble = leftmost pixel), map each index

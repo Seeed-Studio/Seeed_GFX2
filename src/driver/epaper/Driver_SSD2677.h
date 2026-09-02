@@ -11,8 +11,18 @@
  * Gray4 support mirrors the firmware's gray path: the 4bpp framebuffer is
  * mapped to 2bpp gray pixel codes and latched with the two-bucket gray4
  * waveform; gray refresh reuses wake()/update() because the firmware has no
- * gray-specific init or drive phase. Partial-refresh mode of the firmware
- * is not implemented yet.
+ * gray-specific init or drive phase.
+ *
+ * Partial refresh mirrors the firmware's partial path: the controller has
+ * no window registers (the firmware's set_window is a no-op), so the driver
+ * keeps a previous/current pair of full-frame copies. wakePartial() latches
+ * the temperature-selected partial waveform (0x08/0x0F/0x19/0x23), the
+ * windowed pixel data pushed by Panel_EPaper is stitched into the current
+ * copy, and updatePartial() streams the whole frame through DTM1 as an
+ * interleaved old/new difference (pack_interleave, 2-bit transition pairs
+ * old<<1|new) before driving 0x12 -- without the 0x02 power-off, exactly
+ * like the firmware, which keeps the panel powered across consecutive
+ * partial refreshes (sleep() powers down when the session ends).
  */
 
 #ifndef SEEED_GFX_DRIVER_SSD2677_H
@@ -31,6 +41,9 @@ public:
     uint8_t colorDepth() const override { return 1; }
     bool supportsBWRYEPaper() const override { return false; }
     bool supportsDeepSleep() const override { return true; }
+    bool supportsPartialRefresh() const override { return true; }
+    // Partial windows come in whole bytes; Panel_EPaper aligns to 8 pixels.
+    uint16_t partialXAlignment() const override { return 8; }
     bool supportsGrayRefresh(uint8_t levels) const override {
         return levels == 4;
     }
@@ -52,14 +65,12 @@ public:
     // ePaper-specific
     void setBusyPin(int pin) override { _busyPin = static_cast<int8_t>(pin); }
     void update() override;
+    void updatePartial() override;
+    void wakePartial() override;
     // data: 1bpp packed framebuffer (bit=1 black, bit=0 white, MSB = leftmost)
     void pushColors(const uint8_t* data, uint16_t w, uint16_t h);
-    void pushNewColors(const uint8_t* data, size_t len) override {
-        (void)len; pushColors(data, _init_width, _init_height);
-    }
-    void pushOldColors(const uint8_t* data, size_t len) override {
-        (void)len; pushOldColors(data, _init_width, _init_height);
-    }
+    void pushNewColors(const uint8_t* data, size_t len) override;
+    void pushOldColors(const uint8_t* data, size_t len) override;
     void pushColorsFlip(const uint8_t* data, uint16_t w, uint16_t h);
     void pushOldColors(const uint8_t* data, uint16_t w, uint16_t h);
     void pushOldColorsFlip(const uint8_t* data, uint16_t w, uint16_t h);
@@ -82,9 +93,21 @@ private:
     uint8_t readPanelTemperature();
     void latchFullWaveform();
     void latchGray4Waveform();
+    void latchPartialWaveform();
+    /// Lazily allocate the previous/current full-frame pair used by
+    /// updatePartial(); both start all-white on creation, matching the
+    /// panel's own fresh-session baseline.
+    void ensurePartialBuffers();
+    /// Stitch a partial window's physically-ordered bytes into the current
+    /// frame copy at the last setAddrWindow() rectangle.
+    void patchPartialWindow(const uint8_t* data, size_t len);
     uint16_t _init_width, _init_height;
     int8_t _busyPin;
-    bool _refreshPowered; // panel power (0x04) state across refresh phases
+    bool _refreshPowered;   // panel power (0x04) state across refresh phases
+    bool _partialActive;    // between wakePartial() and updatePartial()
+    uint8_t* _partialPrev;  // last displayed frame (partial-diff "old" plane)
+    uint8_t* _partialCur;   // intended frame (partial-diff "new" plane)
+    uint16_t _winX0, _winY0, _winX1, _winY1; // last setAddrWindow() rect
 };
 
 #endif // SEEED_GFX_DRIVER_SSD2677_H
