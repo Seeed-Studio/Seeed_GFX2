@@ -1,6 +1,6 @@
 {
   "name": "Seeed_GFX2",
-  "version": "2.1.0",
+  "version": "1.0.0",
   "description": "A feature-rich graphics library for Seeed Studio XIAO, SenseCAP, reTerminal, and other embedded displays. Supports TFT LCD, ePaper, and OLED panels with a clean layered architecture.",
   "keywords": "seeed, gfx, tft, lcd, epaper, oled, display, graphics, xiao, sensecap, watcher, indicator, wio",
   "repository": {
