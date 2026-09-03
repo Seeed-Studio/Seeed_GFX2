@@ -23,10 +23,68 @@ A layered Arduino graphics library for TFT, OLED, and ePaper displays, built for
 - reTerminal E1001 / E1002 / E1003 / E1004
 - SenseCAP Watcher, SenseCAP Indicator GX / DX
 
+### Supported Displays
+
+**TFT / LCD**
+
+| # | Display |
+|---|---------|
+| 1 | XIAO Round Display |
+| 2 | 1.47-inch LCD SPI Display |
+| 3 | 1.69-inch LCD SPI Display |
+| 4 | 0.96-inch Display (XIAO ESP32-S3 Plus) |
+| 5 | 0.96-inch Display (XIAO nRF52840 Plus) |
+| 6 | 1.14-inch Display (XIAO ESP32-S3 Plus) |
+| 7 | 1.14-inch Display (XIAO nRF52840 Plus) |
+| 8 | 1.47-inch Touch Display (XIAO ESP32-S3 Plus) |
+| 9 | 1.47-inch Touch Display (XIAO nRF52840 Plus) |
+| 10 | Wio Terminal |
+| 11 | SenseCAP Indicator |
+| 12 | SenseCAP Watcher |
+
+**ePaper — Monochrome (B/W)**
+
+| # | Display |
+|---|---------|
+| 1 | XIAO ePaper 1.54-inch (BW) |
+| 2 | XIAO ePaper 2.13-inch (BW) |
+| 3 | XIAO ePaper 2.9-inch (BW) |
+| 4 | XIAO ePaper 2.9-inch Flex (BW) |
+| 5 | XIAO ePaper 4.2-inch (BW) |
+| 6 | XIAO ePaper 4.26-inch (BW) |
+| 7 | XIAO ePaper 5.83-inch (BW) |
+| 8 | XIAO ePaper 7.5-inch (BW) |
+| 9 | XIAO ePaper 10.3-inch (BW) |
+
+**ePaper — 4-Color (BWRY: Black/White/Red/Yellow)**
+
+| # | Display |
+|---|---------|
+| 1 | XIAO ePaper 2.13-inch (BWRY) |
+| 2 | XIAO ePaper 2.9-inch (BWRY) |
+
+**ePaper — 6-Color (Spectra 6: Black/White/Red/Yellow/Blue/Green)**
+
+| # | Display |
+|---|---------|
+| 1 | XIAO ePaper 7.3-inch Colorful |
+| 2 | XIAO ePaper 13.3-inch Colorful |
+| 3 | XIAO ePaper 7.09-inch Colorful |
+
+**reTerminal Series**
+
+| # | Display |
+|---|---------|
+| 1 | reTerminal E1001 |
+| 2 | reTerminal E1002 |
+| 3 | reTerminal E1003 |
+| 4 | reTerminal E1004 |
+| 5 | Sticky |
+
 ### Display Technologies
 - **TFT LCD** — ST7735, ST7789, ILI9341, ILI9488, GC9A01, SSD1351, SPD2010, JD9853A, RGB565
 - **OLED** — SSD1306 (I2C)
-- **ePaper** — SSD1677, SSD1680, SSD1681, SSD1683, UC8151D, UC8179, ED2208, ED103TC2, T133A01, IT8951, JD79660, JD79667, JD79676, JD79686B
+- **ePaper** — SSD1677, SSD1680, SSD1681, SSD1683, SSD2677, UC8151D, UC8179, ED2208, ED103TC2, T133A01, IT8951, JD79660, JD79667, JD79676, JD79686B, GDEB0709E01
 
 > **Note:** When using a large-sized screen (≥ 10.3 inch), please make sure to enable PSRAM. Otherwise, you will receive a memory error prompt.
 
