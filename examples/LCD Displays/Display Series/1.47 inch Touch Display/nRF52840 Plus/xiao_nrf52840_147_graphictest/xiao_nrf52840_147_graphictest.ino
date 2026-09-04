@@ -245,7 +245,7 @@ void setup() {
   Serial.println();
   Serial.println("=== XIAO nRF52840 Plus graphic test ===");
 
-  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_XIAO_1inch47_Touch_JD9853A>()) {
+  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return;
   }

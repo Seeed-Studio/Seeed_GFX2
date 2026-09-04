@@ -79,7 +79,7 @@ static constexpr int8_t LCD_BL_PIN  = 41;  // GPIO41: avoids camera Y7 (GPIO12)
 #endif // ESP32
 
 // ========================= LCD layout constants =========================
-// Panel dimensions/orientation/inversion are baked by Config_XIAO_1inch47_Touch_JD9853A;
+// Panel dimensions/orientation/inversion are baked by Config_Seeed_1inch47_Touch_JD9853A;
 // these remain only as layout math for the preview crop and chrome.
 
 static constexpr int LCD_W = 172;
@@ -335,14 +335,14 @@ static bool allocBuffers() {
 // ========================= LCD UI =========================
 
 static bool initLcd() {
-  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_XIAO_1inch47_Touch_JD9853A>()) {
+  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_Seeed_1inch47_Touch_JD9853A>()) {
     g_lcdOk = false;
     Serial.println(display.lastResult().message);
     Serial.println("[LCD] begin failed");
     return false;
   }
 
-  // Do not call invertDisplay() here. Config_XIAO_1inch47_Touch_JD9853A bakes
+  // Do not call invertDisplay() here. Config_Seeed_1inch47_Touch_JD9853A bakes
   // the verified invert=false / orientation state for the JD9853A 172x320 panel.
   display.fillScreen(C_BLACK);
   display.setTextWrap(false);
@@ -640,7 +640,7 @@ void setup() {
   Serial.println("[INFO] Camera stays in stable JPEG mode; LCD displays decoded RGB565");
   Serial.println("[INFO] Manual exposure presets reduce LED/AE flicker and overexposure");
   Serial.println("[INFO] LCD_RST disabled (GPIO13=OV2640 PCLK); BL=GPIO41 (avoids Y7=GPIO12)");
-  Serial.println("[LCD] Seeed_GFX Board_XIAO_1inch47_Touch_Display<-1,41> + Config_XIAO_1inch47_Touch_JD9853A");
+  Serial.println("[LCD] Seeed_GFX Board_XIAO_1inch47_Touch_Display<-1,41> + Config_Seeed_1inch47_Touch_JD9853A");
   Serial.print("[VIEW] rotateCW=");
   Serial.print(PREVIEW_ROTATE_CW ? "Y" : "N");
   Serial.print(" mirrorX=");

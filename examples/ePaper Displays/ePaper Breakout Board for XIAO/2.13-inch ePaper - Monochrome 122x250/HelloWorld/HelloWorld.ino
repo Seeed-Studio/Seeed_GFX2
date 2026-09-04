@@ -9,7 +9,7 @@
  * and shape sampler match the 2.13" BWRY color and flex mono HelloWorlds.
  */
 #include <Seeed_GFX.h>
-#include "board/boards/XIAO_EPaper_Boards.h"
+#include "board/boards/XIAO_ePaper_Boards.h"
 #include "panel/configs/Seeed_Panel_Configs.h"
 #include "driver/epaper/Driver_SSD1680.h"
 #include "panel/Panel_EPaper.h"
@@ -18,7 +18,7 @@ Seeed_GFX display;
 
 void setup() {
     Serial.begin(115200);
-    if (!display.begin<Board_XIAO_EPaper_Breakout, Config_XIAO_EPaper_2inch13_BW_SSD1680>()) { Serial.println(display.lastResult().message); return; }
+    if (!display.begin<Board_XIAO_ePaper_Breakout, Config_Seeed_ePaper_2inch13_BW_SSD1680>()) { Serial.println(display.lastResult().message); return; }
 
     // Rotate into landscape so text reads along the long edge.
     display.setRotation(3);

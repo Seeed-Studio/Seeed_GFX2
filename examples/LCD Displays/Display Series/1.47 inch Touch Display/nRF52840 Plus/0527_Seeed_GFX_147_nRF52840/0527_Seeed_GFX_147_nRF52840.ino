@@ -110,7 +110,7 @@ void setup()
   // so the manual preparePins()/forceBacklightOn()/hardResetPanel() +
   // tft.init()/setXIAO147Rotation()/applyXIAO147PanelFix() from the TFT_eSPI
   // source are all dropped.
-  if (!display.begin<Board_XIAO_1inch47_Touch_Display<38, 37>, Config_XIAO_1inch47_Touch_JD9853A>()) {
+  if (!display.begin<Board_XIAO_1inch47_Touch_Display<38, 37>, Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return;
   }

@@ -244,7 +244,7 @@ bool Seeed_GFX::begin(Seeed_Product::Product product) {
 
     // Keep the product-selector path aligned with the standalone 1.69 LCD
     // config: rotation 3 presents the 280x240 glass upright.
-    if (product == Seeed_Product::XIAO_LCD_1INCH69 && createdPanel) {
+    if (product == Seeed_Product::Seeed_LCD_1INCH69 && createdPanel) {
         createdPanel->setRotation(3);
     }
 

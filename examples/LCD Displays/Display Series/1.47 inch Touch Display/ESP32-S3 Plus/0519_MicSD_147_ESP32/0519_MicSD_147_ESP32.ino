@@ -11,7 +11,7 @@
  * Board/Config templates replace the original bus+panel setup, manual MADCTL/invert/
  * swapbytes, and (for TFT_eSPI) the driver.h User_Setup. Drops the raw low-noise LCD bus
  * pokes (writeCommand 0x20 INVOFF / 0x39 IDMON / 0xC6) and the manual MADCTL 0x48 fix —
- * Driver_JD9853A/Config_XIAO_1inch47_Touch_JD9853A handle inversion/orientation; reach the
+ * Driver_JD9853A/Config_Seeed_1inch47_Touch_JD9853A handle inversion/orientation; reach the
  * bus via display.panel().driver().bus() only if truly needed.
  */
 
@@ -184,7 +184,7 @@ static bool initLcd() {
 
   if (!display.begin<
           Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>,
-          Config_XIAO_1inch47_Touch_JD9853A>()) {
+          Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     lcdOk = false;
     return false;

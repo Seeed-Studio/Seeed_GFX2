@@ -80,7 +80,7 @@ static void drawBatteryVoltage(uint32_t batteryMv) {
 static void initDisplay() {
   if (!display.begin<
           Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>,
-                     Config_XIAO_1inch47_Touch_JD9853A>()) {
+                     Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return;
   }

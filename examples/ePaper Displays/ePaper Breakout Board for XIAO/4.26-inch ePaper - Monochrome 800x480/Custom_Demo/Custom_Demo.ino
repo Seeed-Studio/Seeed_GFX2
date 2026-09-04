@@ -9,12 +9,12 @@
  */
 
 #include <Seeed_GFX.h>
-#include "board/boards/XIAO_EPaper_Boards.h"
+#include "board/boards/XIAO_ePaper_Boards.h"
 #include "driver/epaper/Driver_SSD1677.h"
 #include "panel/Panel_EPaper.h"
 
 // 1) Board: power, BUSY and enable-pin behavior.
-Board_XIAO_EPaper_Breakout board;
+Board_XIAO_ePaper_Breakout board;
 
 // 2) SPI bus: CS, DC, RST, MOSI, MISO, SCLK and write frequency.
 Bus_SPI bus(D1, D3, D0, D10, D9, D8, 10000000);
@@ -32,7 +32,7 @@ void setup() {
     Serial.begin(115200);
 
     // Preserve the board's verified SPI mode/read clock and ESP32-S3 host.
-    Board_XIAO_EPaper_Breakout::configureBus(bus);
+    Board_XIAO_ePaper_Breakout::configureBus(bus);
 
     if (!display.begin()) {
         Serial.println(display.lastResult().message);

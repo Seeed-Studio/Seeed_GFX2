@@ -1,5 +1,5 @@
 /**
- * @file reTerminal_EPaper_Boards.h
+ * @file reTerminal_ePaper_Boards.h
  * @brief Public board aliases for reTerminal ePaper products.
  */
 
@@ -7,7 +7,7 @@
 #define SEEED_GFX_RETERMINAL_EPAPER_BOARDS_H
 
 #include "../ConfiguredSpiBoard.h"
-#include "../configs/reTerminal_EPaper_Board_Configs.h"
+#include "../configs/reTerminal_ePaper_Board_Configs.h"
 
 /**
  * reTerminal E10xx boards share SPI lines with the microSD slot (at least
@@ -18,7 +18,7 @@
  * probe. Pins reported as -1 are skipped.
  */
 template <typename Config>
-class reTerminalEPaperBoard : public ConfiguredSpiBoard<Config> {
+class reTerminalePaperBoard : public ConfiguredSpiBoard<Config> {
 public:
     bool begin() override {
         if (Config::sdChipSelectPin() >= 0) {
@@ -37,14 +37,14 @@ public:
 };
 
 using Board_reTerminal_E1001 =
-    reTerminalEPaperBoard<Config_reTerminal_E1001_Board>;
+    reTerminalePaperBoard<Config_reTerminal_E1001_Board>;
 using Board_reTerminal_E1002 =
-    reTerminalEPaperBoard<Config_reTerminal_E1002_Board>;
+    reTerminalePaperBoard<Config_reTerminal_E1002_Board>;
 using Board_reTerminal_E1003 =
-    reTerminalEPaperBoard<Config_reTerminal_E1003_Board>;
+    reTerminalePaperBoard<Config_reTerminal_E1003_Board>;
 using Board_reTerminal_E1004 =
-    reTerminalEPaperBoard<Config_reTerminal_E1004_Board>;
+    reTerminalePaperBoard<Config_reTerminal_E1004_Board>;
 using Board_reTerminal_Sticky =
-    reTerminalEPaperBoard<Config_reTerminal_Sticky_Board>;
+    reTerminalePaperBoard<Config_reTerminal_Sticky_Board>;
 
 #endif // SEEED_GFX_RETERMINAL_EPAPER_BOARDS_H

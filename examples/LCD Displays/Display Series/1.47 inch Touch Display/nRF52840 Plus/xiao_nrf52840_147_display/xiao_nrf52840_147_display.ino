@@ -104,7 +104,7 @@ void setup() {
   // The Board template drives RST + BL and brings up the JD9853A panel with the
   // verified orientation/invert state baked into Config — no manual MADCTL, init,
   // rotation, or invertDisplay calls are needed.
-  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_XIAO_1inch47_Touch_JD9853A>()) {
+  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return;
   }

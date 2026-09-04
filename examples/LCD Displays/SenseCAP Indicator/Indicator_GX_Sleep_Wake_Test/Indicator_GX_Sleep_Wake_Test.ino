@@ -1,6 +1,6 @@
 #include <Seeed_GFX.h>
 
-Seeed_GFX display(Seeed_Product::SENSECAP_INDICATOR_GX);
+Seeed_GFX display(Seeed_Product::SenseCAP_Indicator_GX);
 
 constexpr uint16_t TEST_CYCLES = 100;
 constexpr uint32_t VISIBLE_MS = 800;

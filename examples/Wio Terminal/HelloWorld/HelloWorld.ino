@@ -6,7 +6,7 @@
 
 #include <Seeed_GFX.h>
 
-Seeed_GFX display(Seeed_Product::WIO_TERMINAL_PRODUCT);
+Seeed_GFX display(Seeed_Product::Wio_Terminal);
 
 void setup() {
     Serial.begin(115200);

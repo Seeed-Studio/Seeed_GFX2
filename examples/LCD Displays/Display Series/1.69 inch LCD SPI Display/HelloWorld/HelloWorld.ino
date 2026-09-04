@@ -11,7 +11,7 @@
 
 #include <Seeed_GFX.h>
 
-Seeed_GFX display(Seeed_Product::XIAO_LCD_1INCH69);
+Seeed_GFX display(Seeed_Product::Seeed_LCD_1INCH69);
 
 void setup() {
     Serial.begin(115200);

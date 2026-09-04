@@ -6,13 +6,13 @@
  * 实际在售产品，包含分辨率、驱动 IC 类型和面板类型。
  *
  * 使用方式:
- *   display.begin<Board_XIAO_ESP32S3, Config_XIAO_Expansion_1inch28_GC9A01>();
+ *   display.begin<Board_XIAO_ESP32S3, Config_Seeed_Expansion_1inch28_Round_GC9A01>();
  *
  * 产品线:
- *   1. XIAO 扩展板系列 (TFT LCD)
- *   2. XIAO ePaper 扩展板系列 (单色)
- *   3. XIAO ePaper 扩展板系列 (6色彩色)
- *   4. XIAO ePaper 扩展板系列 (BWRY 四色)
+ *   1. Seeed 扩展板系列 (TFT LCD)
+ *   2. Seeed ePaper 扩展板系列 (单色)
+ *   3. Seeed ePaper 扩展板系列 (6色彩色)
+ *   4. Seeed ePaper 扩展板系列 (BWRY 四色)
  *   5. Wio Terminal 系列
  *   6. reTerminal 系列
  *
@@ -64,17 +64,17 @@ class Panel_EPaper;
 class Panel_TFT;
 class Panel_OLED;
 
-// 第一部分: XIAO 扩展板系列 - TFT LCD 显示屏
+// 第一部分: Seeed 扩展板系列 - TFT LCD 显示屏
 // 接口: XIAO 排针直插 (D0-D10)
 // 板卡: Board_XIAO_ESP32S3 / Board_XIAO_RP2040 / Board_XIAO_nRF52840 等
 
-// --- XIAO Round Display (1.28" 圆形) ---
-// 产品: XIAO Round Display (GC9A01, 240x240 圆形 TFT)
+// --- Seeed Round Display (1.28" 圆形) ---
+// 产品: Seeed Round Display (GC9A01, 240x240 圆形 TFT)
 // SKU:  104030008
 // 芯片: GC9A01
 // 尺寸: 1.28 英寸, 240x240 像素, 16-bit RGB565
-// 链接: https://wiki.seeedstudio.com/xiao_round_display/
-struct Config_XIAO_Expansion_1inch28_Round_GC9A01 {
+// 链接: https://www.seeedstudio.com/1-28-Round-Touch-Display-for-Seeed-Studio-XIAO-ESP32.html
+struct Config_Seeed_Expansion_1inch28_Round_GC9A01 {
     using Driver = Driver_GC9A01;
     using Panel  = Panel_TFT;
     static constexpr uint16_t width      = 240;
@@ -97,11 +97,11 @@ struct Config_Seeed_1inch47_LCD_ST7789 {
     static constexpr uint8_t  initialRotation = 1; // Official landscape 320x172
 };
 
-// --- XIAO 1.47 inch Touch Display Board ---
+// --- Seeed 1.47 inch Touch Display Board ---
 // LCD controller: JD9853A (ST7789-compatible DCS command subset)
 // Touch controller: AXS5106L on I2C address 0x63 (kept in the Touch layer)
 // Native LCD orientation is MADCTL 0x48 and normal colors require INVOFF.
-struct Config_XIAO_1inch47_Touch_JD9853A {
+struct Config_Seeed_1inch47_Touch_JD9853A {
     using Driver = Driver_JD9853A;
     using Panel  = Panel_TFT;
     static constexpr uint16_t width      = 172;
@@ -155,11 +155,11 @@ struct Config_Seeed_1inch69_LCD_ST7789 {
     static constexpr uint8_t  initialRotation = 3; // Landscape 280x240, hardware upright
 };
 
-// --- XIAO Expansion Board + 2.4" TFT ---
-// 产品: XIAO Expansion Board + 2.4" TFT Display
+// --- Seeed Expansion Board + 2.4" TFT ---
+// 产品: Seeed Expansion Board + 2.4" TFT Display
 // 芯片: ILI9341
 // 尺寸: 2.4 英寸, 240x320 像素, 16-bit RGB565
-struct Config_XIAO_Expansion_2inch4_ILI9341 {
+struct Config_Seeed_Expansion_2inch4_ILI9341 {
     using Driver = Driver_ILI9341;
     using Panel  = Panel_TFT;
     static constexpr uint16_t width      = 240;
@@ -167,15 +167,15 @@ struct Config_XIAO_Expansion_2inch4_ILI9341 {
     static constexpr uint8_t  colorDepth = 16;
 };
 
-// 第二部分: XIAO ePaper 扩展板系列 - 单色 (Black & White)
-// 接口: XIAO ePaper Driver Board / Breakout Board
-// 板卡: Board_XIAO_EPaper_Driver / Board_XIAO_EPaper_Breakout
+// 第二部分: Seeed ePaper 扩展板系列 - 单色 (Black & White)
+// 接口: Seeed ePaper Driver Board / Breakout Board
+// 板卡: Board_XIAO_ePaper_Driver / Board_XIAO_ePaper_Breakout
 
-// --- XIAO ePaper 1.54" 单色 ---
-// 产品: XIAO ePaper 1.54" 单色 (200x200)
+// --- Seeed ePaper 1.54" 单色 ---
+// 产品: Seeed ePaper 1.54" 单色 (200x200)
 // 芯片: SSD1681
 // 尺寸: 1.54 英寸, 200x200 像素, 1-bit 黑白
-struct Config_XIAO_EPaper_1inch54_BW_SSD1681 {
+struct Config_Seeed_ePaper_1inch54_BW_SSD1681 {
     using Driver = Driver_SSD1681;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 200;
@@ -184,7 +184,7 @@ struct Config_XIAO_EPaper_1inch54_BW_SSD1681 {
     static constexpr bool     breakoutDisplayHorizontalMirror = true;
 };
 
-// --- XIAO ePaper 2.13" 单色 ---
+// --- Seeed ePaper 2.13" 单色 ---
 // 面板: GDEY0213B74；控制器: SSD1680
 // 官网可见分辨率是 122x250，颜色为黑/白。
 // 重要：SSD1680 的行地址按整字节组织，122 像素需要 16 字节，
@@ -193,7 +193,7 @@ struct Config_XIAO_EPaper_1inch54_BW_SSD1681 {
 // 帧缓冲步长和传输。每行末尾 6 个隐藏像素不会暴露给绘图 API，并在
 // 刷屏前被强制清为白色。这等价于原 Seeed_GFX 的 128 宽 +
 // COL_OFFSET=6 viewport，不能把存储宽度直接改成 122。
-struct Config_XIAO_EPaper_2inch13_BW_SSD1680 {
+struct Config_Seeed_ePaper_2inch13_BW_SSD1680 {
     using Driver = Driver_SSD1680;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 122;
@@ -208,11 +208,11 @@ struct Config_XIAO_EPaper_2inch13_BW_SSD1680 {
         EPaperColorSystem::Monochrome;
 };
 
-// --- XIAO ePaper 2.9" 单色 ---
-// 产品: XIAO ePaper 2.9" 单色 (128x296)
+// --- Seeed ePaper 2.9" 单色 ---
+// 产品: Seeed ePaper 2.9" 单色 (128x296)
 // 芯片: SSD1680
 // 尺寸: 2.9 英寸, 128x296 像素, 1-bit 黑白
-struct Config_XIAO_EPaper_2inch9_BW_SSD1680 {
+struct Config_Seeed_ePaper_2inch9_BW_SSD1680 {
     using Driver = Driver_SSD1680;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 128;
@@ -221,12 +221,12 @@ struct Config_XIAO_EPaper_2inch9_BW_SSD1680 {
     static constexpr bool     breakoutDisplayHorizontalMirror = true;
 };
 
-// --- XIAO ePaper 2.9" 柔性单色 (FLEX) ---
-// 产品: XIAO ePaper 2.9" Flexible Monochrome (GDEW029I6FD, 128x296 native)
+// --- Seeed ePaper 2.9" 柔性单色 (FLEX) ---
+// 产品: Seeed ePaper 2.9" Flexible Monochrome (GDEW029I6FD, 128x296 native)
 // 芯片: UC8151D (UltraChip, OTP LUT path)
 // 尺寸: 2.9 英寸柔性, 128x296 像素, 1-bit 黑白
 // 与刚性 2.9" (SSD1680) 分离: FLEX 用 UC8151D 控制器及 GDEW029I6FD OTP 初始化。
-struct Config_XIAO_EPaper_2inch9_Flex_BW_UC8151D {
+struct Config_Seeed_ePaper_2inch9_Flex_BW_UC8151D {
     using Driver = Driver_UC8151D;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 128;
@@ -235,11 +235,11 @@ struct Config_XIAO_EPaper_2inch9_Flex_BW_UC8151D {
 };
 
 
-// --- XIAO ePaper 4.2" 单色 ---
-// 产品: XIAO ePaper 4.2" 单色 (400x300)
+// --- Seeed ePaper 4.2" 单色 ---
+// 产品: Seeed ePaper 4.2" 单色 (400x300)
 // 芯片: SSD1683
 // 尺寸: 4.2 英寸, 400x300 像素, 1-bit 黑白
-struct Config_XIAO_EPaper_4inch2_BW_SSD1683 {
+struct Config_Seeed_ePaper_4inch2_BW_SSD1683 {
     using Driver = Driver_SSD1683;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 400;
@@ -248,11 +248,11 @@ struct Config_XIAO_EPaper_4inch2_BW_SSD1683 {
     static constexpr bool     breakoutDisplayVerticalMirror = true;
 };
 
-// --- XIAO ePaper 4.26" 单色 ---
-// 产品: XIAO ePaper 4.26" 单色 (800x480)
+// --- Seeed ePaper 4.26" 单色 ---
+// 产品: Seeed ePaper 4.26" 单色 (800x480)
 // 芯片: SSD1677
 // 注意: 4.26" 与 7.5" 分辨率相同 (800x480), 但尺寸不同
-struct Config_XIAO_EPaper_4inch26_BW_SSD1677 {
+struct Config_Seeed_ePaper_4inch26_BW_SSD1677 {
     using Driver = Driver_SSD1677;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 800;
@@ -261,11 +261,11 @@ struct Config_XIAO_EPaper_4inch26_BW_SSD1677 {
     static constexpr bool     mirror     = true; // 4.26" glass is horizontally mirrored
 };
 
-// --- XIAO ePaper 5.83" 单色 ---
-// 产品: XIAO ePaper 5.83" 单色 (648x480)
+// --- Seeed ePaper 5.83" 单色 ---
+// 产品: Seeed ePaper 5.83" 单色 (648x480)
 // 芯片: UC8179
 // 尺寸: 5.83 英寸, 648x480 像素, 1-bit 黑白
-struct Config_XIAO_EPaper_5inch83_BW_UC8179 {
+struct Config_Seeed_ePaper_5inch83_BW_UC8179 {
     using Driver = Driver_UC8179;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 648;
@@ -273,13 +273,13 @@ struct Config_XIAO_EPaper_5inch83_BW_UC8179 {
     static constexpr uint8_t  colorDepth = 1;
 };
 
-// --- XIAO ePaper 7.5" 单色 (EE04 驱动板) ---
-// 产品: XIAO ePaper 7.5" 单色 + EE04 驱动板 (800x480)
+// --- Seeed ePaper 7.5" 单色 (EE04 驱动板) ---
+// 产品: Seeed ePaper 7.5" 单色 + EE04 驱动板 (800x480)
 // 芯片: UC8179
 // 尺寸: 7.5 英寸, 800x480 像素, 1-bit 黑白
 // Board-independent 7.5" UC8179 config. Select Driver Board or EE04 in
 // begin<Board, Config>(); the legacy EE04-specific type remains an alias.
-struct Config_XIAO_EPaper_7inch5_BW_UC8179 {
+struct Config_Seeed_ePaper_7inch5_BW_UC8179 {
     using Driver = Driver_UC8179;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 800;
@@ -287,7 +287,7 @@ struct Config_XIAO_EPaper_7inch5_BW_UC8179 {
     static constexpr uint8_t  colorDepth = 1;
 };
 
-struct Config_XIAO_EPaper_7inch5_BW_JD79686B {
+struct Config_Seeed_ePaper_7inch5_BW_JD79686B {
     using Driver = Driver_JD79686B;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 800;
@@ -295,11 +295,11 @@ struct Config_XIAO_EPaper_7inch5_BW_JD79686B {
     static constexpr uint8_t  colorDepth = 1;
 };
 
-// --- XIAO ePaper 10.3" 单色 ---
-// 产品: XIAO ePaper 10.3" 单色 (1872x1404)
+// --- Seeed ePaper 10.3" 单色 ---
+// 产品: Seeed ePaper 10.3" 单色 (1872x1404)
 // 芯片: ED103TC2（需要外部 TCON 实现）
 // 尺寸: 10.3 英寸, 1872x1404 像素, 1-bit 黑白
-struct Config_XIAO_EPaper_10inch3_BW_ED103TC2 {
+struct Config_Seeed_ePaper_10inch3_BW_ED103TC2 {
     using Driver = Driver_ED103TC2;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 1872;
@@ -307,15 +307,15 @@ struct Config_XIAO_EPaper_10inch3_BW_ED103TC2 {
     static constexpr uint8_t  colorDepth = 1;
 };
 
-// 第三部分: XIAO ePaper 扩展板系列 - 6色彩色 (Colorful)
+// 第三部分: Seeed ePaper 扩展板系列 - 6色彩色 (Colorful)
 // 支持: 黑色、白色、红色、黄色、蓝色、绿色
 // 使用方式: begin() 后调用 panel->initColorfulMode()
 
-// --- XIAO ePaper 7.3" 6色彩色 ---
-// 产品: XIAO ePaper 7.3" 6色彩色 (800x480)
+// --- Seeed ePaper 7.3" 6色彩色 ---
+// 产品: Seeed ePaper 7.3" 6色彩色 (800x480)
 // 芯片: ED2208
 // 颜色: 黑/白/红/黄/蓝/绿
-struct Config_XIAO_EPaper_7inch3_Colorful_ED2208 {
+struct Config_Seeed_ePaper_7inch3_Colorful_ED2208 {
     using Driver = Driver_ED2208;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 800;
@@ -324,11 +324,11 @@ struct Config_XIAO_EPaper_7inch3_Colorful_ED2208 {
     static constexpr PanelMode panelMode() { return PanelMode::Colorful; }
 };
 
-// --- XIAO ePaper 13.3" 6色彩色 ---
-// 产品: XIAO ePaper 13.3" 6色彩色 (1200x1600)
+// --- Seeed ePaper 13.3" 6色彩色 ---
+// 产品: Seeed ePaper 13.3" 6色彩色 (1200x1600)
 // 芯片: T133A01
 // 颜色: 黑/白/红/黄/蓝/绿
-struct Config_XIAO_EPaper_13inch3_Colorful_T133A01 {
+struct Config_Seeed_ePaper_13inch3_Colorful_T133A01 {
     using Driver = Driver_T133A01;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 1200;
@@ -337,13 +337,13 @@ struct Config_XIAO_EPaper_13inch3_Colorful_T133A01 {
     static constexpr PanelMode panelMode() { return PanelMode::Colorful; }
 };
 
-// --- XIAO ePaper 7.09" 6色彩色 ---
+// --- Seeed ePaper 7.09" 6色彩色 ---
 // 面板:GDEB0709E01 (E Ink Spectra 6, 1200x1600)
 // 驱动 IC : NT61522 (PVT61522) x1 + EK73601 x1，
 // 与 13.3" T133A01 同族架构：双芯片/双 CS，每行数据拆左右半行分写两颗 IC，
 // 波形烧在 COG OTP（主机不下载 LUT）。六种原生颜色: 黑/白/红/黄/绿/蓝。
 // 双 CS 为硬性要求：XIAO 侧复用 EE02 扩展板（暴露第二路 CS）。
-struct Config_XIAO_EPaper_7inch09_Colorful_GDEB0709E01 {
+struct Config_Seeed_ePaper_7inch09_Colorful_GDEB0709E01 {
     using Driver = Driver_GDEB0709E01;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 1200;
@@ -356,10 +356,10 @@ struct Config_XIAO_EPaper_7inch09_Colorful_GDEB0709E01 {
     static constexpr PanelMode panelMode() { return PanelMode::Colorful; }
 };
 
-// 第四部分: XIAO ePaper 扩展板系列 - BWRY 四色
+// 第四部分: Seeed ePaper 扩展板系列 - BWRY 四色
 // 支持: 黑色、白色、红色、黄色
 
-// --- XIAO ePaper 2.13" BWRY 四色 ---
+// --- Seeed ePaper 2.13" BWRY 四色 ---
 // 产品/SKU: 2.13" Quadruple Color ePaper, 104990846
 // 面板: GDEY0213F51；Seeed_GFX 兼容驱动名: JD79676
 // 官网可见分辨率是 122x250，四种原生颜色为黑/白/红/黄。
@@ -368,7 +368,7 @@ struct Config_XIAO_EPaper_7inch09_Colorful_GDEB0709E01 {
 // 并不表示 16 级灰度；JD79676 驱动会在发送时转换为面板四色码。
 // 122 个可见像素占 61 字节，而驱动按双字节成组转换，因此仍必须
 // 使用 64 字节/行（128 像素）的存储缓冲，末尾 6 像素固定为白色。
-struct Config_XIAO_EPaper_2inch13_BWRY_JD79676 {
+struct Config_Seeed_ePaper_2inch13_BWRY_JD79676 {
     using Driver = Driver_JD79676;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 122;
@@ -383,11 +383,11 @@ struct Config_XIAO_EPaper_2inch13_BWRY_JD79676 {
     static constexpr PanelMode panelMode() { return PanelMode::BWRY; }
 };
 
-// --- XIAO ePaper 2.9" BWRY 四色 ---
-// 产品: XIAO ePaper 2.9" BWRY (128x296)
+// --- Seeed ePaper 2.9" BWRY 四色 ---
+// 产品: Seeed ePaper 2.9" BWRY (128x296)
 // 芯片: JD79667
 // 颜色: 黑/白/红/黄
-struct Config_XIAO_EPaper_2inch9_BWRY_JD79667 {
+struct Config_Seeed_ePaper_2inch9_BWRY_JD79667 {
     using Driver = Driver_JD79667;
     using Panel  = Panel_EPaper;
     static constexpr uint16_t width      = 128;
@@ -498,7 +498,7 @@ struct Config_reTerminal_E1004_T133A01 {
 // 注意: 受元器件供货影响，Sticky 产线混用 SSD1677 与 SSD2677 两种模组，
 // 每台设备只装其中一种，买到哪一种随机。两种芯片共用同一套
 // SPI/DC/CS/BUSY/RESET 接线。推荐走产品目录路径
-// (Seeed_Product::RETERMINAL_Sticky)，其 Driver_Sticky_Auto 会在 begin()
+// (Seeed_Product::reTerminal_Sticky)，其 Driver_Sticky_Auto 会在 begin()
 // 时按固件同款探测自动选择驱动: 复位 -> 发 0x70 -> 读回 1 字节 ->
 // 0x07 为 SSD2677，否则 SSD1677。本配置仅用于已知装 SSD1677 的
 // begin<Board, Config> 直连写法。

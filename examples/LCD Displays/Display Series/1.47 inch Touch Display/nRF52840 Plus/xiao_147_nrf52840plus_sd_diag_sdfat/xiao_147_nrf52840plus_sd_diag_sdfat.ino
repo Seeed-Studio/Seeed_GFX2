@@ -12,7 +12,7 @@
  * Ported from XIAO-Display-Board-main (xiao_147_nrf52840plus_sd_diag_sdfat,
  * Arduino_GFX). The Seeed_GFX Board/Config templates replace the original SW-SPI
  * bus+panel construction, manual hard-reset, backlight-on, and the MADCTL 0x48
- * fix (Config_XIAO_1inch47_Touch_JD9853A bakes orientation/color). The filename is
+ * fix (Config_Seeed_1inch47_Touch_JD9853A bakes orientation/color). The filename is
  * kept verbatim per instruction (the content is a recorder, not an SD diagnostic).
  * PDM (setPins D1/D0 + onReceive ring), SdFat SHARED_SPI SD, WAV header
  * write/patch, and the acquireForLcd/acquireForSd shared-SPI bus-idle guards are
@@ -172,7 +172,7 @@ static bool initLcd() {
   gpioIdleState();
 
   if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>,
-                    Config_XIAO_1inch47_Touch_JD9853A>()) {
+                    Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println("[LCD] display.begin() failed");
     Serial.println(display.lastResult().message);
     return false;

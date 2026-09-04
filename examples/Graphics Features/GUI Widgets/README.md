@@ -27,14 +27,14 @@ For diagnostics or a custom board package, an explicit override can still be
 placed below the `#include <Seeed_GFX.h>` line:
 
 ```cpp
-#define SEEED_GUI_WIDGET_PRODUCT Seeed_Product::SENSECAP_WATCHER
+#define SEEED_GUI_WIDGET_PRODUCT Seeed_Product::SenseCAP_Watcher
 ```
 
 Supported values are:
 
-- `Seeed_Product::SENSECAP_INDICATOR_GX` or `_DX`: touch-enabled 480x480 demo.
-- `Seeed_Product::SENSECAP_WATCHER`: touch-enabled 412x412 demo.
-- `Seeed_Product::WIO_TERMINAL_PRODUCT`: graphs and meters run normally;
+- `Seeed_Product::SenseCAP_Indicator_GX` or `_DX`: touch-enabled 480x480 demo.
+- `Seeed_Product::SenseCAP_Watcher`: touch-enabled 412x412 demo.
+- `Seeed_Product::Wio_Terminal`: graphs and meters run normally;
   buttons and sliders enter an automatic demonstration because Wio Terminal
   has no touch panel.
 

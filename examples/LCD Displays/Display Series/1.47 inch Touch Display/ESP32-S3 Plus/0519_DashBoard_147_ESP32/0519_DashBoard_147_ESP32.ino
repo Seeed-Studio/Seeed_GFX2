@@ -383,7 +383,7 @@ static void scanI2c() {
 static bool initLcd() {
   if (!display.begin<
           Board_DashBoard_147_ESP32,
-          Config_XIAO_1inch47_Touch_JD9853A>()) {
+          Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println("[LCD] display.begin() failed");
     Serial.println(display.lastResult().message);
     g_lcdOk = false;

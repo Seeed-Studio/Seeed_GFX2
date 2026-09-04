@@ -10,7 +10,7 @@
 #include <Seeed_GFX.h>
 #include "core/Sprite.h"
 
-Seeed_GFX display(Seeed_Product::XIAO_ROUND_DISPLAY);
+Seeed_GFX display(Seeed_Product::Seeed_Round_Display_XIAO);
 Seeed_Sprite sprite;
 
 // 演示 1: 弹窗效果

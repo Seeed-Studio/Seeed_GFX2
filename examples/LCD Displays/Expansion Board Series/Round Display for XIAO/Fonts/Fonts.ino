@@ -6,7 +6,7 @@
 #include <font/GFXFF/FreeMono12pt7b.h>
 #include <font/GFXFF/FreeSans9pt7b.h>
 
-Seeed_GFX display(Seeed_Product::XIAO_ROUND_DISPLAY);
+Seeed_GFX display(Seeed_Product::Seeed_Round_Display_XIAO);
 
 // 演示 1: GLCD 内置字体 (5x7, 缩放)
 void demoGLCD() {

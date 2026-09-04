@@ -16,15 +16,15 @@
  * On-screen Back buttons call navigator->pop().
  *
  * If your unit has the RGB-only DX panel, change the product ID below to
- * SENSECAP_INDICATOR_DX (touch address 0x38 instead of 0x48).
+ * SenseCAP_Indicator_DX (touch address 0x38 instead of 0x48).
  */
 
 #include <Seeed_GFX.h>
 #include <Seeed_UI.h>
 #include <stdio.h>
 
-// Select SENSECAP_INDICATOR_DX for the RGB-only DX panel.
-Seeed_GFX display(Seeed_Product::SENSECAP_INDICATOR_GX);
+// Select SenseCAP_Indicator_DX for the RGB-only DX panel.
+Seeed_GFX display(Seeed_Product::SenseCAP_Indicator_GX);
 
 // Set to 1 to print raw touch coordinates to Serial whenever the panel is
 // pressed. Use it to tell apart "touch coords are wrong/rotated" from "touch
@@ -485,7 +485,7 @@ void setup() {
     // reliable than the 400 kHz default on this shared bus.
     Wire.setClock(100000);
 
-    // SENSECAP_INDICATOR_GX/DX applies the panel's fixed 180-degree touch
+    // SenseCAP_Indicator_GX/DX applies the panel's fixed 180-degree touch
     // mounting correction automatically.  setTouchRotation() is only needed
     // as an explicit override for custom or mechanically revised hardware.
 

@@ -1,7 +1,7 @@
 #include <Seeed_GFX.h>
 
-// Select SENSECAP_INDICATOR_DX when the unit has the RGB-only DX panel.
-Seeed_GFX display(Seeed_Product::SENSECAP_INDICATOR_GX);
+// Select SenseCAP_Indicator_DX when the unit has the RGB-only DX panel.
+Seeed_GFX display(Seeed_Product::SenseCAP_Indicator_GX);
 
 void setup() {
     Serial.begin(115200);

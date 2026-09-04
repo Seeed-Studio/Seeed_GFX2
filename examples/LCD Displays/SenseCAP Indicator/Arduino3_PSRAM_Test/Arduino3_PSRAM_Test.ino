@@ -2,7 +2,7 @@
 #include <Seeed_GFX.h>
 
 // 创建 SenseCAP Indicator 对象
-// 如果是 DX 版本，改成 SENSECAP_INDICATOR_DX
+// 如果是 DX 版本，改成 SenseCAP_Indicator_DX
 // SenseCAP Indicator + Arduino 3.x PSRAM overclocking test
 // This example demonstrates the SenseCAP Indicator running on the
 // Arduino-ESP32 3.x core with Octal PSRAM at 80 MHz.
@@ -15,8 +15,8 @@
 //       -DCONFIG_SPIRAM_SPEED_80M=1
 
 // Create SenseCAP Indicator object.
-// Use SENSECAP_INDICATOR_DX if your unit has the RGB-only DX panel.
-Seeed_GFX display(Seeed_Product::SENSECAP_INDICATOR_GX);
+// Use SenseCAP_Indicator_DX if your unit has the RGB-only DX panel.
+Seeed_GFX display(Seeed_Product::SenseCAP_Indicator_GX);
 
 void setup() {
     Serial.begin(115200);

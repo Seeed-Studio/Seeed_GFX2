@@ -2,7 +2,7 @@
 #include <math.h>
 
 // Optional emergency override, normally leave undefined:
-// #define SEEED_GUI_WIDGET_PRODUCT Seeed_Product::SENSECAP_WATCHER
+// #define SEEED_GUI_WIDGET_PRODUCT Seeed_Product::SenseCAP_Watcher
 Seeed_GFX display;
 Seeed_MeterWidget amps(&display);
 Seeed_MeterWidget volts(&display);

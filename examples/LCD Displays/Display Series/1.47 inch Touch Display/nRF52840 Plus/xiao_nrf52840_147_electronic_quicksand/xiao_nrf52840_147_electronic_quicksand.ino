@@ -85,7 +85,7 @@ static uint16_t blendColor(uint16_t a, uint16_t b, uint8_t amount) {
 }
 
 static bool initDisplay() {
-  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_XIAO_1inch47_Touch_JD9853A>()) {
+  if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>, Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return false;
   }

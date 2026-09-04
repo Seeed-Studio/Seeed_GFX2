@@ -1,5 +1,5 @@
 /**
- * @file XIAO_EPaper_Board_Configs.h
+ * @file XIAO_ePaper_Board_Configs.h
  * @brief Pin and SPI configurations for XIAO ePaper adapter boards.
  */
 
@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include "BoardConfig.h"
 
-struct XIAO_EPaper_CommonConfig {
+struct XIAO_ePaper_CommonConfig {
     static SpiBusConfig spi() {
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
         // Keep the ESP32-S3 path aligned with the hardware-verified
@@ -42,44 +42,44 @@ struct XIAO_EPaper_CommonConfig {
     }
 };
 
-struct Config_XIAO_EPaper_Driver_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_Driver_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper Driver Board"; }
     static BoardPinConfig pins() { return driverPins(D2); }
 };
 
-struct Config_XIAO_EPaper_Breakout_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_Breakout_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper Breakout Board"; }
     static BoardPinConfig pins() { return driverPins(D5); }
 };
 
-struct Config_XIAO_EPaper_EE02_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_EE02_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EE02"; }
     // EE02 exposes the second chip select required by the dual-controller
     // T133A01 and GDEB0709E01 panels.
     static BoardPinConfig pins() { return esp32DisplayPins(10, -1, 41); }
 };
 
-struct Config_XIAO_EPaper_EE03_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_EE03_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EE03"; }
     static BoardPinConfig pins() { return esp32DisplayPins(-1, D9); }
 };
 
-struct Config_XIAO_EPaper_EE04_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_EE04_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EE04"; }
     static BoardPinConfig pins() { return esp32DisplayPins(10, -1); }
 };
 
-struct Config_XIAO_EPaper_EE05_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_EE05_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EE05"; }
     static BoardPinConfig pins() { return esp32DisplayPins(10, -1); }
 };
 
-struct Config_XIAO_EPaper_EN04_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_EN04_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EN04"; }
     static BoardPinConfig pins() { return nrfDisplayPins(); }
 };
 
-struct Config_XIAO_EPaper_EN05_Board : XIAO_EPaper_CommonConfig {
+struct Config_XIAO_ePaper_EN05_Board : XIAO_ePaper_CommonConfig {
     static const char* name() { return "XIAO ePaper EN05"; }
     static BoardPinConfig pins() { return nrfDisplayPins(); }
 };

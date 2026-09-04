@@ -12,8 +12,6 @@ The example tree follows the Seeed product/board/panel matrix:
 - `Sense CAP watcher/` — SenseCAP Watcher onboard SPD2010 display.
 - `LCD Displays/SenseCAP Indicator/` — SenseCAP Indicator GX/DX onboard RGB
   display.
-- `Getting_Started/` — entry-point sketches (`Product_Selector` is a generic
-  product picker; `Graphics_Basics` runs on the Round Display).
 - `Graphics Features/GUI Widgets/` — hardware-neutral Button, Slider, Graph/Trace and
   Analogue Meter examples migrated from the original library. They use the
   native `src/widgets/ClassicWidgets.*` implementation and no longer require
@@ -33,23 +31,23 @@ they will be filled in over time.
 
 ## Start here
 
-- `Getting_Started/Product_Selector`: select a registered Seeed product with
-  `Seeed_Product::Product`.
-- `Getting_Started/Graphics_Basics`: basic drawing primitives on the Seeed
-  Studio Round Display for XIAO.
+- `LCD Displays/Expansion Board Series/Round Display for XIAO/Graphics_Basics`:
+  basic drawing primitives on the Seeed Studio Round Display for XIAO.
+- Pick a product from one of the tables below, then open its folder under
+  `LCD Displays/`, `ePaper Displays/`, `Wio Terminal/`, or `Sense CAP watcher/`.
 
 ## LCD product examples
 
 | Seeed Wiki product name | Library selection | Example folder |
 |---|---|---|
-| Seeed Studio Round Display for XIAO | `XIAO_ROUND_DISPLAY` | `LCD Displays/Expansion Board Series/Round Display for XIAO` |
-| 1.47 inch LCD SPI Display | `XIAO_LCD_1INCH47` | `LCD Displays/Display Series/1.47 inch LCD SPI Display` |
-| XIAO 1.47 inch Touch Display | `XIAO_LCD_1INCH47_TOUCH` (pin template) | `LCD Displays/Display Series/1.47 inch Touch Display` |
-| 1.69 inch LCD Display Module | `XIAO_LCD_1INCH69` | `LCD Displays/Display Series/1.69 inch LCD SPI Display` |
-| Wio Terminal | `WIO_TERMINAL_PRODUCT` | `Wio Terminal` |
-| SenseCAP Watcher | `SENSECAP_WATCHER` | `Sense CAP watcher` |
-| SenseCAP Indicator GX | `SENSECAP_INDICATOR_GX` | `LCD Displays/SenseCAP Indicator` |
-| SenseCAP Indicator DX | `SENSECAP_INDICATOR_DX` | `LCD Displays/SenseCAP Indicator` |
+| Seeed Studio Round Display for XIAO | `Seeed_Round_Display_XIAO` | `LCD Displays/Expansion Board Series/Round Display for XIAO` |
+| 1.47 inch LCD SPI Display | `Seeed_LCD_1INCH47` | `LCD Displays/Display Series/1.47 inch LCD SPI Display` |
+| XIAO 1.47 inch Touch Display | `Seeed_LCD_1INCH47_TOUCH` (pin template) | `LCD Displays/Display Series/1.47 inch Touch Display` |
+| 1.69 inch LCD Display Module | `Seeed_LCD_1INCH69` | `LCD Displays/Display Series/1.69 inch LCD SPI Display` |
+| Wio Terminal | `Wio_Terminal` | `Wio Terminal` |
+| SenseCAP Watcher | `SenseCAP_Watcher` | `Sense CAP watcher` |
+| SenseCAP Indicator GX | `SenseCAP_Indicator_GX` | `LCD Displays/SenseCAP Indicator` |
+| SenseCAP Indicator DX | `SenseCAP_Indicator_DX` | `LCD Displays/SenseCAP Indicator` |
 
 The Round Display folder also holds feature demos (`Color_Palette`, `Fonts`,
 `Sprite`) that run on the same panel. `Touch_UI` is an interactive
@@ -102,17 +100,17 @@ need the board's second display chip select. Panels are grouped under
 
 | Board | Panel demonstrated | Library selection |
 |---|---|---|
-| EE04 | 2.9 inch monochrome | `XIAO_EPAPER_2INCH9` |
-| EE04 | 4.26 inch monochrome | `XIAO_EPAPER_4INCH26` |
-| EE04 | 7.5 inch monochrome | `XIAO_EPAPER_7INCH5` |
-| EE04 | 7.3 inch E Ink Spectra 6 | `XIAO_EPAPER_7INCH3_C` |
-| EE02 | 13.3 inch E Ink Spectra 6 | `XIAO_EPAPER_13INCH3_C` |
-| EE02 | 7.09 inch E Ink Spectra 6 | `XIAO_EPAPER_7INCH09_C` |
-| EE03 | 10.3 inch monochrome | `XIAO_EPAPER_10INCH3` |
-| reTerminal E1001 | 7.5 inch monochrome | `RETERMINAL_E1001` |
-| reTerminal E1002 | 7.3 inch E Ink Spectra 6 | `RETERMINAL_E1002` |
-| reTerminal E1003 | 10.3 inch monochrome | `RETERMINAL_E1003` |
-| reTerminal E1004 | 13.3 inch E Ink Spectra 6 | `RETERMINAL_E1004` |
+| EE04 | 2.9 inch monochrome | `Seeed_ePaper_2INCH9` |
+| EE04 | 4.26 inch monochrome | `Seeed_ePaper_4INCH26` |
+| EE04 | 7.5 inch monochrome | `Seeed_ePaper_7INCH5` |
+| EE04 | 7.3 inch E Ink Spectra 6 | `Seeed_ePaper_7INCH3_C` |
+| EE02 | 13.3 inch E Ink Spectra 6 | `Seeed_ePaper_13INCH3_C` |
+| EE02 | 7.09 inch E Ink Spectra 6 | `Seeed_ePaper_7INCH09_C` |
+| EE03 | 10.3 inch monochrome | `Seeed_ePaper_10INCH3` |
+| reTerminal E1001 | 7.5 inch monochrome | `reTerminal_E1001` |
+| reTerminal E1002 | 7.3 inch E Ink Spectra 6 | `reTerminal_E1002` |
+| reTerminal E1003 | 10.3 inch monochrome | `reTerminal_E1003` |
+| reTerminal E1004 | 13.3 inch E Ink Spectra 6 | `reTerminal_E1004` |
 
 Every ePaper sketch renders the whole frame first and calls `refresh()` once,
 so initialization, communication, allocation, and BUSY-timeout failures remain

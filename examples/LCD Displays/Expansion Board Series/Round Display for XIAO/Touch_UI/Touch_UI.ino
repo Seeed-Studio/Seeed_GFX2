@@ -244,7 +244,7 @@ private:
     UiButton _clearButton;
 };
 
-Seeed_GFX display(Seeed_Product::XIAO_ROUND_DISPLAY);
+Seeed_GFX display(Seeed_Product::Seeed_Round_Display_XIAO);
 // PaintPad already filters samples closer than 3 px; match that threshold here
 // so drag strokes stay continuous without forwarding duplicate touch noise.
 TouchInput touch(display, 2, 600, 3);

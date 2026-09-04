@@ -3,7 +3,7 @@
  * Board: XIAO ePaper Breakout Board (template API - no registered product for this board).
  */
 #include <Seeed_GFX.h>
-#include "board/boards/XIAO_EPaper_Boards.h"
+#include "board/boards/XIAO_ePaper_Boards.h"
 #include "panel/configs/Seeed_Panel_Configs.h"
 #include "driver/epaper/Driver_JD79676.h"
 #include "panel/Panel_EPaper.h"
@@ -12,7 +12,7 @@ Seeed_GFX display;
 
 void setup() {
     Serial.begin(115200);
-    if (!display.begin<Board_XIAO_EPaper_Breakout, Config_XIAO_EPaper_2inch13_BWRY_JD79676>()) { Serial.println(display.lastResult().message); return; }
+    if (!display.begin<Board_XIAO_ePaper_Breakout, Config_Seeed_ePaper_2inch13_BWRY_JD79676>()) { Serial.println(display.lastResult().message); return; }
 
     // Landscape glass: rotate the 128x250 portrait framebuffer to 250x128,
     // mirroring the working 2.9" BWRY (which uses setRotation(3)). Without it

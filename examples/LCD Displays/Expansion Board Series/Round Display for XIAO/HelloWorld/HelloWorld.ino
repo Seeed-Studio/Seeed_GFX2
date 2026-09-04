@@ -6,7 +6,7 @@
 
 #include <Seeed_GFX.h>
 
-Seeed_GFX display(Seeed_Product::XIAO_ROUND_DISPLAY);
+Seeed_GFX display(Seeed_Product::Seeed_Round_Display_XIAO);
 
 void setup() {
     Serial.begin(115200);

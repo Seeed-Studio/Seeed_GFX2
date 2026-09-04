@@ -14,12 +14,12 @@ Product classifyIntegratedDisplay(bool watcherExpander,
                                   bool indicatorGxTouch,
                                   bool indicatorDxTouch) {
     if (watcherExpander && !indicatorExpander)
-        return SENSECAP_WATCHER;
+        return SenseCAP_Watcher;
     if (!watcherExpander && indicatorExpander) {
         if (indicatorGxTouch && !indicatorDxTouch)
-            return SENSECAP_INDICATOR_GX;
+            return SenseCAP_Indicator_GX;
         if (indicatorDxTouch && !indicatorGxTouch)
-            return SENSECAP_INDICATOR_DX;
+            return SenseCAP_Indicator_DX;
     }
     return CUSTOM;
 }
@@ -63,15 +63,15 @@ bool prepareIndicatorTouch(uint8_t expanderAddress) {
 
 Product detectIntegratedDisplayProduct() {
 #if defined(SEEED_SENSECAP_WATCHER) || defined(ARDUINO_SENSECAP_WATCHER)
-    return SENSECAP_WATCHER;
+    return SenseCAP_Watcher;
 #elif defined(SEEED_SENSECAP_INDICATOR_GX) || \
       defined(ARDUINO_SENSECAP_INDICATOR_GX)
-    return SENSECAP_INDICATOR_GX;
+    return SenseCAP_Indicator_GX;
 #elif defined(SEEED_SENSECAP_INDICATOR_DX) || \
       defined(ARDUINO_SENSECAP_INDICATOR_DX)
-    return SENSECAP_INDICATOR_DX;
+    return SenseCAP_Indicator_DX;
 #elif defined(ARDUINO_WIO_TERMINAL)
-    return WIO_TERMINAL_PRODUCT;
+    return Wio_Terminal;
 #elif defined(ARDUINO_ARCH_ESP32)
     bool indicator = false;
     bool gxTouch = false;
@@ -79,7 +79,7 @@ Product detectIntegratedDisplayProduct() {
 
     // Watcher: PCA9535 at 0x21 on the product control bus.
     if (beginEsp32Wire(Wire, 47, 48) && probeAddress(Wire, 0x21))
-        return SENSECAP_WATCHER;
+        return SenseCAP_Watcher;
 
     // Indicator GX/DX: TCA9535 at 0x20 (some revisions use 0x39),
     // followed by FT6x36 at 0x48 for GX or 0x38 for DX.

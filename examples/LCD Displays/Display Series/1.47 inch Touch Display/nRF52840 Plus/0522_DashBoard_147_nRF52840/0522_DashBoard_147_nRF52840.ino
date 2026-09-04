@@ -434,13 +434,13 @@ static void acquireForSd() {
 }
 
 // ========================= LCD low-level =========================
-// Seeed_GFX Board_XIAO_1inch47_Touch_Display<38,37> + Config_XIAO_1inch47_Touch_JD9853A
+// Seeed_GFX Board_XIAO_1inch47_Touch_Display<38,37> + Config_Seeed_1inch47_Touch_JD9853A
 // own the panel: hard-reset (RST), backlight-on (BL), MADCTL, and BGR/invert are baked by
 // the Config. Only runtime backlight PWM and the clear screen remain here.
 
 static bool initLcd() {
   if (!display.begin<Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>,
-                     Config_XIAO_1inch47_Touch_JD9853A>()) {
+                     Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return false;
   }

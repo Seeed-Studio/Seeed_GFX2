@@ -16,7 +16,7 @@
  *
  *   Seeed_GFX display;
  *   void setup() {
- *       display.begin<Board_XIAO_ESP32S3, Config_XIAO_Expansion_1inch28_Round_GC9A01>();
+ *       display.begin<Board_XIAO_ESP32S3, Config_Seeed_Expansion_1inch28_Round_GC9A01>();
  *       display.fillScreen(TFT_BLACK);
  *       display.drawString("Hello Seeed!", 10, 10);
  *   }
@@ -140,7 +140,7 @@ public:
      *    #include "driver/tft/Driver_GC9A01.h"
      *    #include "panel/Panel_TFT.h"
      *    tft.begin<Board_XIAO_ESP32S3,
-     *              Config_XIAO_Expansion_1inch28_Round_GC9A01>();
+     *              Config_Seeed_Expansion_1inch28_Round_GC9A01>();
      */
     template<typename BoardType, typename PanelConfigType>
     bool begin() {

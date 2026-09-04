@@ -18,7 +18,7 @@ SenseCAPWatcherInput::SenseCAPWatcherInput(Seeed_GFX& gfx, uint8_t sourceId,
                sourceId, debounceMs, 2000) {}
 
 UiStatus SenseCAPWatcherInput::begin() {
-    if (_gfx.activeProduct() != Seeed_Product::SENSECAP_WATCHER ||
+    if (_gfx.activeProduct() != Seeed_Product::SenseCAP_Watcher ||
         !_gfx.boardPtr()) {
         return UiStatus::NotInitialized;
     }

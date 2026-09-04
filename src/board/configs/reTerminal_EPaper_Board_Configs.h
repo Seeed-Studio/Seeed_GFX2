@@ -1,5 +1,5 @@
 /**
- * @file reTerminal_EPaper_Board_Configs.h
+ * @file reTerminal_ePaper_Board_Configs.h
  * @brief Pin and SPI configurations for reTerminal ePaper products.
  */
 
@@ -8,7 +8,7 @@
 
 #include "BoardConfig.h"
 
-struct reTerminal_EPaper_CommonConfig {
+struct reTerminal_ePaper_CommonConfig {
     // The official Setup520-Setup525 profiles select USE_HSPI_PORT on the
     // ESP32-S3. Keep the display and the on-board microSD slot on that same
     // peripheral because they share SCK/MOSI (and MISO where applicable).
@@ -41,17 +41,17 @@ struct reTerminal_EPaper_CommonConfig {
     }
 };
 
-struct Config_reTerminal_E1001_Board : reTerminal_EPaper_CommonConfig {
+struct Config_reTerminal_E1001_Board : reTerminal_ePaper_CommonConfig {
     static const char* name() { return "reTerminal E1001"; }
     static BoardPinConfig pins() { return e1001Pins(); }
 };
 
-struct Config_reTerminal_E1002_Board : reTerminal_EPaper_CommonConfig {
+struct Config_reTerminal_E1002_Board : reTerminal_ePaper_CommonConfig {
     static const char* name() { return "reTerminal E1002"; }
     static BoardPinConfig pins() { return e1001Pins(); }
 };
 
-struct Config_reTerminal_E1003_Board : reTerminal_EPaper_CommonConfig {
+struct Config_reTerminal_E1003_Board : reTerminal_ePaper_CommonConfig {
     static const char* name() { return "reTerminal E1003"; }
     static constexpr int8_t sdEnablePin() { return 39; }
 
@@ -64,7 +64,7 @@ struct Config_reTerminal_E1003_Board : reTerminal_EPaper_CommonConfig {
     }
 };
 
-struct Config_reTerminal_E1004_Board : reTerminal_EPaper_CommonConfig {
+struct Config_reTerminal_E1004_Board : reTerminal_ePaper_CommonConfig {
     static const char* name() { return "reTerminal E1004"; }
 
     static BoardPinConfig pins() {
@@ -79,7 +79,7 @@ struct Config_reTerminal_E1004_Board : reTerminal_EPaper_CommonConfig {
     }
 };
 
-struct Config_reTerminal_Sticky_Board : reTerminal_EPaper_CommonConfig {
+struct Config_reTerminal_Sticky_Board : reTerminal_ePaper_CommonConfig {
     static const char* name() { return "reTerminal Sticky"; }
     static BoardPinConfig pins() { return stickyPins(true); }
     // The inherited sdChipSelectPin/sdDetectPin/sdEnablePin (GPIO14/15/16)

@@ -13,7 +13,7 @@
 #include <Seeed_GFX.h>
 #include "image.h"
 
-Seeed_GFX display(Seeed_Product::XIAO_ROUND_DISPLAY);
+Seeed_GFX display(Seeed_Product::Seeed_Round_Display_XIAO);
 
 // Bitmap dimensions (keep in sync with image.h).
 static constexpr int16_t IMG_W = 96;

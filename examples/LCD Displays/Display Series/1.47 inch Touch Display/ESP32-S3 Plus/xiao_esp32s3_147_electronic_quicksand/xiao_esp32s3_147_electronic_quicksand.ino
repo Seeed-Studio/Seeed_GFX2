@@ -11,7 +11,7 @@
  * TFT_eSPI). The Seeed_GFX Board/Config templates replace the original bus+panel
  * setup, manual MADCTL/invert/swapbytes, and (for TFT_eSPI) the driver.h User_Setup.
  * DROP driver.h + manual init + applyXIAO147PanelFix() (the 0x36/0x48 MADCTL) +
- * invertDisplay(false) — Config_XIAO_1inch47_Touch_JD9853A (172x320 BGR invert=false)
+ * invertDisplay(false) — Config_Seeed_1inch47_Touch_JD9853A (172x320 BGR invert=false)
  * handles orientation/color. Use Board_XIAO_1inch47_Touch_Display<13,12> (IRQ
  * defaults D7; do NOT call Touch attach — touch unused). Keep raw I2C IMU.
  */
@@ -429,7 +429,7 @@ void setup() {
 
   if (!display.begin<
           Board_XIAO_1inch47_Touch_Display<LCD_RST_PIN, LCD_BL_PIN>,
-                     Config_XIAO_1inch47_Touch_JD9853A>()) {
+                     Config_Seeed_1inch47_Touch_JD9853A>()) {
     Serial.println(display.lastResult().message);
     return;
   }
