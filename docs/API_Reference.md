@@ -201,7 +201,7 @@ registered in one hub. The current UI implementation requires C++14 or newer
 and is excluded on `ARDUINO_ARCH_NRF52`; the graphics API remains available.
 
 For SenseCAP Watcher, construct `SenseCAPWatcherInput` from the product-mode
-`Seeed_GFX` object after selecting `SENSECAP_WATCHER`. Rotation produces Scroll
+`Seeed_GFX` object after selecting `SenseCAP_Watcher`. Rotation produces Scroll
 events; `installSenseCAPWatcherDefaultActionMap()` maps the knob push switch to
 `UiAction::Activate`. The switch has 25 ms debounce by default and emits one
 LongPressed phase after a two-second hold. The lower-level
@@ -327,20 +327,40 @@ individual board header is preferred when minimizing compile dependencies.
 
 ```cpp
 namespace Seeed_Product {
-    enum Product {
-        XIAO_ROUND_DISPLAY,    // 1.28" Round, GC9A01
-        XIAO_LCD_1INCH47,      // standalone 1.47" LCD, ST7789V3
-        XIAO_LCD_1INCH47_TOUCH,// XIAO 1.47" Touch, JD9853A + AXS5106L
-        XIAO_ILI9341_240x320,
-        XIAO_EPAPER_1INCH54,
-        XIAO_EPAPER_2INCH13,
-        XIAO_EPAPER_2INCH9,
-        XIAO_EPAPER_4INCH2,
-        XIAO_EPAPER_4INCH26,
-        XIAO_EPAPER_5INCH83,
-        XIAO_EPAPER_7INCH5,
-        XIAO_EPAPER_10INCH3,
-        WIO_TERMINAL,          // 2.4" TFT, ILI9341
+    enum Product : uint8_t {
+        Seeed_Round_Display_XIAO,    // 1.28" Round, GC9A01
+        Seeed_LCD_1INCH47,      // standalone 1.47" LCD, ST7789V3
+        Seeed_ILI9341_240x320,  // generic ILI9341 240x320 template
+        Seeed_ePaper_1INCH54,
+        Seeed_ePaper_2INCH13,
+        Seeed_ePaper_2INCH9,
+        Seeed_LCD_1INCH69 = 6,  // 1.69" LCD, ST7789V2 (240x280)
+        Seeed_ePaper_4INCH2 = 7,
+        Seeed_ePaper_4INCH26,
+        Seeed_ePaper_5INCH83,
+        Seeed_ePaper_7INCH5,
+        Seeed_ePaper_10INCH3,
+        Seeed_ePaper_4INCH0_C,
+        Seeed_ePaper_7INCH3_C,   // 7.3" Spectra 6 colorful
+        Seeed_ePaper_13INCH3_C,  // 13.3" Spectra 6 colorful
+        Seeed_ePaper_1INCH54_BWRY,
+        Seeed_ePaper_2INCH13_BWRY,
+        Seeed_ePaper_2INCH9_BWRY,
+        Seeed_ePaper_2INCH9_FLEX, // 2.9" flexible monochrome
+        reTerminal_E1001 = 19,
+        reTerminal_E1002,
+        reTerminal_E1003,
+        reTerminal_E1004,
+        reTerminal_Sticky,
+        Wio_Terminal,  // 2.4" TFT, ILI9341
+        Seeed_ePaper_7INCH5_JD79686B,
+        Seeed_LCD_0INCH96,      // 0.96" LCD Board (ST7789 80x160)
+        Seeed_LCD_1INCH14,      // 1.14" LCD Board (ST7789 135x240)
+        Seeed_LCD_1INCH47_TOUCH,// 1.47" Touch, JD9853A + AXS5106L
+        SenseCAP_Watcher,
+        SenseCAP_Indicator_GX,
+        SenseCAP_Indicator_DX,
+        Seeed_ePaper_7INCH09_C, // 7.09" Spectra 6 colorful (GDEB0709E01)
         CUSTOM,
     };
 }
