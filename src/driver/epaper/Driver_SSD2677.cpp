@@ -4,8 +4,8 @@
  *
  * Aligned with the reTerminal Sticky product firmware
  * (seeed_epaper/driver/ssd2677.c): monochrome 1bpp framebuffer expanded to
- * the controller's 2bpp data format (black=0x03, white=0x00 under
- * PSR {0x2F,0x0E}), RES = 800x680 (680 gate lines scanned, 480 visible),
+ * the controller's 2bpp data format (black=0x00, white=0x03), RES = 800x680
+ * (680 gate lines scanned, 480 visible),
  * temperature-selected waveform latched before every refresh, and power
  * on/off handled inside the refresh sequence instead of at init.
  * Gray4 follows the firmware's gray path: two-bucket gray4 waveform latch
@@ -123,10 +123,9 @@ void Driver_SSD2677::latchGray4Waveform() {
 }
 
 // Firmware gray4_nibble_to_ssd2677_pixel: indexes 0-3 pass through
-// unchanged. NOTE: gray4 pixel codes are the opposite polarity of the
-// monochrome path — nibble 0 (black) -> 0x00, nibble 3 (white) -> 0x03.
-// Indexes 4-15 (outside the 4-level set) fold back by their upper pair,
-// ported verbatim from the firmware switch.
+// unchanged — nibble 0 (black) -> 0x00, nibble 3 (white) -> 0x03, the same
+// native polarity as the monochrome path. Indexes 4-15 (outside the 4-level
+// set) fold back by their upper pair, ported verbatim from the firmware switch.
 static inline uint8_t ssd2677Gray4NibbleToPixel(uint8_t nibble) {
     if (nibble <= 3) return nibble;
     switch ((nibble >> 2) & 3) {
@@ -137,32 +136,36 @@ static inline uint8_t ssd2677Gray4NibbleToPixel(uint8_t nibble) {
     }
 }
 
-// Firmware pack_mono_byte_to_2bpp: one 1bpp byte (bit=1 black, bit=0 white,
-// MSB leftmost) becomes two output bytes of 2-bit pairs — black -> 0x03,
-// white -> 0x00. out[0] carries pixels 0-3, out[1] pixels 4-7.
+// Expand one 1bpp byte (bit=1 black, bit=0 white, MSB leftmost) into two
+// output bytes of 2-bit pairs. The SSD2677 native pixel code is black -> 0x00,
+// white -> 0x03 — the same polarity the gray4 path uses below. (The previous
+// black -> 0x03 mapping inverted every monochrome frame.) out[0] carries
+// pixels 0-3, out[1] pixels 4-7.
 static inline void ssd2677ExpandMonoByte(uint8_t mono, uint8_t& o0,
                                          uint8_t& o1) {
     o0 = 0;
     o1 = 0;
     for (uint8_t bit = 0; bit < 8; bit++) {
-        const uint8_t pair = ((mono >> (7 - bit)) & 1) ? 0x03 : 0x00;
+        const uint8_t pair = ((mono >> (7 - bit)) & 1) ? 0x00 : 0x03;
         if (bit < 4) o0 |= static_cast<uint8_t>(pair << (6 - bit * 2));
         else         o1 |= static_cast<uint8_t>(pair << (14 - bit * 2));
     }
 }
 
-// Firmware pack_interleave: one 1bpp byte from the previous (old) frame and
-// one from the current (new) frame become two bytes of 2-bit transition
-// pairs (old<<1 | new): 0b00 white->white, 0b01 white->black, 0b10
-// black->white, 0b11 black->black. o0 carries pixels 0-3, o1 pixels 4-7.
+// Pack one 1bpp byte from the previous (old) frame and one from the current
+// (new) frame into two bytes of 2-bit transition pairs (old<<1 | new). The
+// framebuffer bits are 1=black / 0=white, but this panel's native DTM codes
+// are 0x00=black / 0x03=white (the same polarity as the monochrome and gray4
+// paths), so each bit is inverted first: an unchanged-white pixel emits 0b11
+// and an unchanged-black pixel 0b00. o0 carries pixels 0-3, o1 pixels 4-7.
 static inline void ssd2677PackInterleave(uint8_t prev, uint8_t cur,
                                          uint8_t& o0, uint8_t& o1) {
     o0 = 0;
     o1 = 0;
     for (uint8_t bit = 0; bit < 8; bit++) {
-        const uint8_t pair =
-            static_cast<uint8_t>((((prev >> (7 - bit)) & 1) << 1) |
-                                 ((cur >> (7 - bit)) & 1));
+        const uint8_t oldW = static_cast<uint8_t>(((prev >> (7 - bit)) & 1) ^ 1);
+        const uint8_t newW = static_cast<uint8_t>(((cur >> (7 - bit)) & 1) ^ 1);
+        const uint8_t pair = static_cast<uint8_t>((oldW << 1) | newW);
         if (bit < 4) o0 |= static_cast<uint8_t>(pair << (6 - bit * 2));
         else         o1 |= static_cast<uint8_t>(pair << (14 - bit * 2));
     }

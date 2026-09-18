@@ -7,7 +7,7 @@
 
 DisplayInstance::DisplayInstance()
     : _board(nullptr), _bus(nullptr), _driver(nullptr), _panel(nullptr), _touch(nullptr),
-      _initialized(false), _lastResult() {}
+      _initialized(false), _initialRotation(0), _lastResult() {}
 
 DisplayInstance::~DisplayInstance() {
     reset();
@@ -36,6 +36,10 @@ GfxResult DisplayInstance::adopt(IBoard* board, IBus* bus,
     return _lastResult;
 }
 
+void DisplayInstance::setInitialRotation(uint8_t rotation) {
+    _initialRotation = rotation;
+}
+
 GfxResult DisplayInstance::begin() {
     if (!_panel) {
         _lastResult = GfxResult(GfxError::NotInitialized,
@@ -49,6 +53,9 @@ GfxResult DisplayInstance::begin() {
                                     "display stack initialization failed");
         }
         return _lastResult;
+    }
+    if (_initialRotation) {
+        _panel->setRotation(_initialRotation);
     }
     if (_touch && !_touch->begin(*_bus)) {
         (void)_panel->end();
@@ -89,4 +96,5 @@ void DisplayInstance::reset() {
     _driver = nullptr;
     _bus = nullptr;
     _board = nullptr;
+    _initialRotation = 0;
 }

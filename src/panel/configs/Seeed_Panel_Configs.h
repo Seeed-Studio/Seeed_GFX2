@@ -493,7 +493,7 @@ struct Config_reTerminal_E1004_T133A01 {
 };
 
 // --- reTerminal Sticky ---
-// 产品: reTerminal Sticky (3.94" ePaper, 800x480)
+// 产品: reTerminal Sticky (3.97" ePaper, 800x480)
 // 芯片: SSD1677
 // 注意: 受元器件供货影响，Sticky 产线混用 SSD1677 与 SSD2677 两种模组，
 // 每台设备只装其中一种，买到哪一种随机。两种芯片共用同一套
@@ -511,7 +511,7 @@ struct Config_reTerminal_Sticky_SSD1677 {
 };
 
 // --- reTerminal Sticky (SSD2677 变体) ---
-// 产品: reTerminal Sticky (3.94" ePaper, 800x480)
+// 产品: reTerminal Sticky (3.97" ePaper, 800x480)
 // 芯片: SSD2677
 struct Config_reTerminal_Sticky_SSD2677 {
     using Driver = Driver_SSD2677;

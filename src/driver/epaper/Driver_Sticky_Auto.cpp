@@ -24,6 +24,9 @@ Driver_Sticky_Auto::Driver_Sticky_Auto(uint16_t w, uint16_t h)
     : _ssd1677(w, h), _ssd2677(w, h) {
     _width = w;
     _height = h;
+    // Only the Sticky's SSD1677 glass needs the monochrome polarity invert;
+    // the 4.26" SSD1677 product uses the raw driver directly (default false).
+    _ssd1677.setInvertMono(true);
 }
 
 const char* Driver_Sticky_Auto::name() const {

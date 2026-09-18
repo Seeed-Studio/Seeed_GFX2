@@ -142,7 +142,14 @@ GfxResult createConfigured(const ProductDescriptor& product,
             return geometry;
         }
     }
-    return instance.adopt(board, bus, driver, panel);
+    GfxResult result = instance.adopt(board, bus, driver, panel);
+    // Default rotation (0-3) is a product property. Hand it to the instance so
+    // it is applied after panel->begin() (which resets rotation), keeping the
+    // unified begin() path free of per-product rotation branches.
+    if (result && product.initialRotation) {
+        instance.setInitialRotation(product.initialRotation);
+    }
+    return result;
 }
 
 #if SEEED_GFX_CATALOG_INCLUDE_XIAO
@@ -517,7 +524,8 @@ const ProductEntry kProducts[] = {
         // resolves the fitted controller at begin() time with the firmware
         // probe (reset -> 0x70 -> read -> 0x07 = SSD2677).
         {Seeed_Product::reTerminal_Sticky, "seeed.reterminal.sticky.r1",
-         "reTerminal Sticky", 800, 480, 1, ProductPanelMode::Default},
+         "reTerminal Sticky", 800, 480, 1, ProductPanelMode::Default,
+         0, 0, EPaperColorSystem::Unknown, 0, 0, 0, 0, 2},  // 180°: buttons on top
         &createConfigured<Board_reTerminal_Sticky, Driver_Sticky_Auto, Panel_EPaper>, nullptr
     },
     // Wio Terminal

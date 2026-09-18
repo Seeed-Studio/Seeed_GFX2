@@ -2,17 +2,6 @@
  * Product: reTerminal Sticky
  * Display: 3.97 inch monochrome ePaper, 800x480, SSD1677/SSD2677
  * Wiki: https://www.seeedstudio.com/sticky/docs/quick-start
- *
- * Demo: a "sticky-note dashboard" composed entirely from drawing primitives.
- * Exercises in one sketch:
- *   - fillRect / drawRoundRect / fillRoundRect for cards
- *   - drawLine / drawFastHLine for outlines, dividers, strikethrough
- *   - fillTriangle for a folded note corner
- *   - drawPixel checkerboard to fake 50% gray on the 1bpp panel
- *   - drawArc / drawCircle for a progress gauge
- *   - drawString / drawNumber with text datum + textWidth alignment
- *
- * Everything is drawn once in setup() and pushed with a single update().
  */
 #include <Seeed_GFX.h>
 
@@ -74,12 +63,7 @@ void setup() {
         return;
     }
 
-    // Diagnostics: Sticky production mixes SSD1677 and SSD2677 modules;
-    // Driver_Sticky_Auto probes at begin() (reset -> 0x70 -> read one byte,
-    // 0x07 = SSD2677). Print the resolution so units with a missing image
-    // can be traced to either the probe or the driver path.
-    // No driverAs<>() here: Arduino targets build with -fno-rtti, so
-    // dynamic_cast is unavailable; IDriver::probedChipId() covers it.
+
     IDriver* sticky = display.driverPtr();
     const int chipId = sticky->probedChipId();
     if (chipId >= 0) {
@@ -126,10 +110,10 @@ void setup() {
 
     display.setTextColor(TFT_BLACK);
     const char* tasks[] = {
-        "Calibrate E6 palette",
+        "Test 4-gray display",
         "Sync Arduino libraries",
         "Write Sticky dashboard demo",
-        "Audit SSD168x waveforms",
+        "Audit display waveforms",
     };
     const bool done[] = {true, true, false, false};
     for (int i = 0; i < 4; ++i) {
@@ -169,7 +153,7 @@ void setup() {
     display.setTextSize(1);
     display.drawString("Don't forget:", noteX + 12, noteY + 36);
     display.drawString("- Water the plants", noteX + 12, noteY + 56);
-    display.drawString("- Ship E1005 samples", noteX + 12, noteY + 74);
+    display.drawString("- Ship Sticky samples", noteX + 12, noteY + 74);
     display.drawString("- Review dither audit", noteX + 12, noteY + 92);
 
     // ----------------------------------------- right bottom: bar chart --

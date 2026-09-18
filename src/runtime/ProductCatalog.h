@@ -33,6 +33,8 @@ struct ProductDescriptor {
     /** Optional portrait/marketing orientation when native transport differs. */
     uint16_t portraitWidth;
     uint16_t portraitHeight;
+    /** Default framebuffer rotation (0-3) applied at product selection. */
+    uint8_t initialRotation;
 
     constexpr ProductDescriptor(
         Seeed_Product::Product productId,
@@ -48,7 +50,8 @@ struct ProductDescriptor {
         uint8_t physicalColorCount = 0,
         uint8_t physicalGrayLevels = 0,
         uint16_t marketingPortraitWidth = 0,
-        uint16_t marketingPortraitHeight = 0)
+        uint16_t marketingPortraitHeight = 0,
+        uint8_t initialRotation = 0)
         : id(productId)
         , stableId(productStableId)
         , name(productName)
@@ -62,7 +65,8 @@ struct ProductDescriptor {
         , nativeColorCount(physicalColorCount)
         , nativeGrayLevels(physicalGrayLevels)
         , portraitWidth(marketingPortraitWidth)
-        , portraitHeight(marketingPortraitHeight) {}
+        , portraitHeight(marketingPortraitHeight)
+        , initialRotation(initialRotation) {}
 
     constexpr uint16_t driverWidth() const {
         return storageWidth != 0 ? storageWidth : width;

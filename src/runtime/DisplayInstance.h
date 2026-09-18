@@ -23,6 +23,9 @@ public:
 
     GfxResult adopt(IBoard* board, IBus* bus, IDriver* driver, IPanel* panel,
                     ITouch* touch = nullptr);
+    /** Remember a default rotation (0-3) to apply right after begin(): the
+     *  panel resets its rotation during begin(), so it is applied post-begin. */
+    void setInitialRotation(uint8_t rotation);
     GfxResult begin();
     GfxResult end();
     void reset();
@@ -43,6 +46,7 @@ private:
     IPanel* _panel;
     ITouch* _touch;
     bool _initialized;
+    uint8_t _initialRotation = 0;
     GfxResult _lastResult;
 };
 

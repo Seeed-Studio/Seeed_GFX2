@@ -14,6 +14,7 @@
 class Driver_SSD1677 : public IDriver {
 public:
     Driver_SSD1677(uint16_t w = 800, uint16_t h = 480, int8_t busyPin = -1);
+    ~Driver_SSD1677();
 
     const char* name() const override { return "SSD1677"; }
     uint16_t width() const override { return _width; }
@@ -47,14 +48,9 @@ public:
     void wakeGray() override;
     void wakePartial() override;
     void pushColors(const uint8_t* data, uint16_t w, uint16_t h);
-    void pushNewColors(const uint8_t* data, size_t len) override {
-        if (!_bus || !data) return;
-        _bus->writeCommand(0x24); _bus->writeData(data, len);
-    }
-    void pushOldColors(const uint8_t* data, size_t len) override {
-        if (!_bus || !data) return;
-        _bus->writeCommand(0x26); _bus->writeData(data, len);
-    }
+    void pushNewColors(const uint8_t* data, size_t len) override;
+    void pushOldColors(const uint8_t* data, size_t len) override;
+    void setInvertMono(bool invert) { _invertMono = invert; }
     void pushColorsFlip(const uint8_t* data, uint16_t w, uint16_t h);
     void pushOldColors(const uint8_t* data, uint16_t w, uint16_t h);
     void pushOldColorsFlip(const uint8_t* data, uint16_t w, uint16_t h);
@@ -69,8 +65,14 @@ public:
 
 private:
     void busyWait();
+    void writeMonoData(const uint8_t* data, size_t len);
+    void ensureBaseline();
     uint16_t _init_width, _init_height;
     int8_t _busyPin;
+    bool _invertMono = false;
+    uint8_t* _partialBaseline = nullptr;  // last full frame (native/sent order)
+    bool _partialActive = false;          // between wakePartial() and updatePartial()
+    uint16_t _winX0 = 0, _winY0 = 0, _winX1 = 0, _winY1 = 0;  // last setAddrWindow()
 };
 
 #endif // SEEED_GFX_DRIVER_SSD1677_H

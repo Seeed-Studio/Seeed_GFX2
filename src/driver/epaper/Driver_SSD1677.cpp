@@ -7,10 +7,39 @@
 
 #include "Driver_SSD1677.h"
 #include "../../core/Gpio.h"
+#include <stdlib.h>
+#include <string.h>
 
 Driver_SSD1677::Driver_SSD1677(uint16_t w, uint16_t h, int8_t busyPin)
     : _init_width(w), _init_height(h), _busyPin(busyPin) {
     _width = w; _height = h;
+}
+
+Driver_SSD1677::~Driver_SSD1677() {
+    if (_partialBaseline) {
+        free(_partialBaseline);
+        _partialBaseline = nullptr;
+    }
+}
+
+void Driver_SSD1677::writeMonoData(const uint8_t* data, size_t len) {
+    if (_invertMono) {
+        uint8_t out[512];
+        for (size_t off = 0; off < len; off += sizeof(out)) {
+            size_t n = (len - off < sizeof(out)) ? (len - off) : sizeof(out);
+            for (size_t i = 0; i < n; i++) out[i] = data[off + i] ^ 0xFF;
+            _bus->writeData(out, n);
+        }
+    } else {
+        _bus->writeData(data, len);
+    }
+}
+
+void Driver_SSD1677::ensureBaseline() {
+    if (_partialBaseline) return;
+    const size_t bytes = ((size_t)(_init_width + 7U) / 8U) * _init_height;
+    _partialBaseline = static_cast<uint8_t*>(malloc(bytes));
+    if (_partialBaseline) memset(_partialBaseline, 0x00, bytes);  // all-white raw
 }
 
 void Driver_SSD1677::busyWait() {
@@ -100,6 +129,7 @@ void Driver_SSD1677::displayOn()  { update(); }
 void Driver_SSD1677::displayOff() {}
 
 void Driver_SSD1677::setAddrWindow(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    _winX0 = x1; _winY0 = y1; _winX1 = x2; _winY1 = y2;
     _bus->writeCommand(0x44);
     _bus->writeData(x1 & 0xFF);
     _bus->writeData(x1 >> 8);
@@ -151,6 +181,7 @@ void Driver_SSD1677::updatePartial() {
     _bus->writeData(0xFF);
     _bus->writeCommand(0x20);
     busyWait();
+    _partialActive = false;
 }
 
 void Driver_SSD1677::initGray() {
@@ -216,6 +247,7 @@ void Driver_SSD1677::wakeGray() {
 void Driver_SSD1677::wakePartial() {
     init(*_bus);
     initPartial();
+    _partialActive = true;
 }
 
 void Driver_SSD1677::pushColors(const uint8_t* data, uint16_t w, uint16_t h) {
@@ -247,6 +279,53 @@ void Driver_SSD1677::pushOldColors(const uint8_t* data, uint16_t w, uint16_t h) 
     for (uint32_t i = 0; i < count; i++) {
         _bus->writeData(data[i]);
     }
+}
+
+void Driver_SSD1677::pushNewColors(const uint8_t* data, size_t len) {
+    if (!_bus || !data) return;
+
+    if (_partialActive) {
+        // Partial: the controller diffs the previous (0x26) and current (0x24)
+        // planes to decide each pixel's transition. Feeding only the new window
+        // left it without an old-frame reference (gray/gradient ghosting), so
+        // send the matching previous window from the baseline first, then the
+        // new window, then advance the baseline.
+        const uint16_t w = static_cast<uint16_t>(_winX1 - _winX0 + 1U);
+        const uint16_t h = static_cast<uint16_t>(_winY1 - _winY0 + 1U);
+        const size_t stride = ((size_t)(_init_width + 7U) / 8U);
+        const uint16_t rowBytes = static_cast<uint16_t>((w + 7U) / 8U);
+
+        ensureBaseline();
+        _bus->writeCommand(0x26);  // previous plane
+        if (_partialBaseline) {
+            for (uint16_t r = 0; r < h; r++) {
+                writeMonoData(_partialBaseline +
+                                  (size_t)(_winY0 + r) * stride + (_winX0 >> 3),
+                              rowBytes);
+            }
+            for (uint16_t r = 0; r < h; r++) {
+                memcpy(_partialBaseline + (size_t)(_winY0 + r) * stride + (_winX0 >> 3),
+                       data + (size_t)r * rowBytes, rowBytes);
+            }
+        }
+        _bus->writeCommand(0x24);  // current plane
+        writeMonoData(data, len);
+    } else {
+        // Full frame: remember it as the partial baseline, then emit it.
+        const size_t fullBytes = ((size_t)(_init_width + 7U) / 8U) * _init_height;
+        if (len >= fullBytes) {
+            ensureBaseline();
+            if (_partialBaseline) memcpy(_partialBaseline, data, fullBytes);
+        }
+        _bus->writeCommand(0x24);
+        writeMonoData(data, len);
+    }
+}
+
+void Driver_SSD1677::pushOldColors(const uint8_t* data, size_t len) {
+    if (!_bus || !data) return;
+    _bus->writeCommand(0x26);
+    writeMonoData(data, len);
 }
 
 void Driver_SSD1677::pushOldColorsFlip(const uint8_t* data, uint16_t w, uint16_t h) {

@@ -3,43 +3,12 @@
  * Hardware: reTerminal Sticky (XIAO ESP32-S3 + 3.97" 800x480 monochrome
  * e-paper). Production mixes SSD1677 and SSD2677 controllers, one per
  * unit, identical glass and wiring:
- *
- *           Function     ESP32-S3 GPIO
- *           SPI SCK      13  (shared with SD)
- *           SPI MOSI     14  (shared with SD)
- *           SPI MISO     12  (shared with SD; panel read-back line)
- *           EPD CS       15
- *           EPD DC       16
- *           EPD RST      17
- *           EPD BUSY     18
- *           EPD EN       47  (panel power enable, active high)
- *           SD  CS       8
- *
- * The Sticky microSD slot has no SD_EN / SD_DET wiring -- do not drive
- * GPIO15/16 here, those are the display CS/DC pins.
- *
- * Controller selection: this sketch first takes the catalog path
- * (Seeed_Product::reTerminal_Sticky), which runs the library's two-stage
- * auto-detect: the firmware-style read probe (reset -> 0x70 -> read one
- * byte -> 0x07 = SSD2677), and, when the read-back line does not answer
- * (0x00/0xFF), a BUSY-polarity probe after reset (ready HIGH = SSD2677,
- * ready LOW = SSD1677). If the chosen driver still fails to init, the
- * sketch retries with the direct SSD2677 configuration as belt-and-braces
- * (bypasses detection entirely; a wrong first pick costs one BUSY timeout
- * of about 30 s).
- *
- * Diagnostic side effect: the SD slot shares MISO=GPIO12 with the panel
- * SDO. If ProbeResult/ProbePhase2 read all 0x00 from the panel but this
- * sketch loads card data fine, the ESP32 -> GPIO12 read path is proven
- * good and the panel SDO is simply not wired on that unit.
- *
- * Serial: USB CDC. Board: Tools > Board > ESP32 Arduino > XIAO_ESP32S3,
- * PSRAM: OPI PSRAM (the RGB888 decode needs more than internal SRAM).
  */
 
 #include <SPI.h>
 #include <FS.h>
 #include <SD.h>
+#include "driver/gpio.h"
 #include <Seeed_GFX.h>
 #include "bus/Bus_SPI.h"
 
@@ -58,8 +27,12 @@ static constexpr int EPD_HEIGHT = 480;
 
 // ----- pins ------------------------------------------------------------------
 // Sticky microSD: CS=GPIO8 on the bus shared with the panel (SCK=13,
-// MOSI=14, MISO=12). No SD_EN / SD_DET pins exist on this board.
+// MOSI=14, MISO=12). SD_EN=GPIO10 (active-high slot power enable) and
+// SD_DETECT=GPIO11 (card-present input) exist on every Sticky; SD_EN must
+// be driven HIGH before the card can answer (see setup()).
 static constexpr int PIN_SD_CS = 8;
+static constexpr int PIN_SD_EN = 10;
+static constexpr int PIN_SD_DETECT = 11;
 #define LOG Serial
 #define TAG "[sticky-bw]"
 
@@ -316,14 +289,74 @@ void setup() {
     return;
   }
 
-  LOG.println(TAG " SD.begin (shares the SPI bus with the panel) ...");
-  if (!SD.begin(PIN_SD_CS, *spi)) {
+  // The SD slot shares SCK/MOSI/MISO (GPIO13/14/12) with the panel; the card's
+  // DO (MISO) floats until it answers CMD0, so without a pull-up the init can
+  // read garbage and falsely fail. Mirror the production firmware
+  // (Seeed-reTerminal-E10xx-Firmware boards/common/sd_card.cpp): pull up all
+  // four SD lines, then retry at progressively slower clocks -- some cards do
+  // not respond at 4 MHz on the shared bus.
+  gpio_set_pull_mode(GPIO_NUM_12, GPIO_PULLUP_ONLY);  // SD/panel MISO
+  gpio_set_pull_mode(GPIO_NUM_13, GPIO_PULLUP_ONLY);  // SCK
+  gpio_set_pull_mode(GPIO_NUM_14, GPIO_PULLUP_ONLY);  // MOSI
+  gpio_set_pull_mode(GPIO_NUM_8,  GPIO_PULLUP_ONLY);  // SD CS
+
+  // Power the SD slot before the card can answer. SD_EN is active HIGH and is
+  // the slot's power/level-shifter enable (the library board config also
+  // drives it in begin(); this explicit drive is belt-and-braces). SD_DETECT
+  // is a card-present input pulled up by the slot's switch; it is not required
+  // for the card to respond, but mirror the shipping firmware and read it.
+  pinMode(PIN_SD_EN, OUTPUT);
+  digitalWrite(PIN_SD_EN, HIGH);
+  pinMode(PIN_SD_DETECT, INPUT_PULLUP);   // low = card present (slot switch to GND)
+  delay(100);  // let the slot power / level shifter settle before SD.begin
+  const int sd_det = digitalRead(PIN_SD_DETECT);
+  LOG.printf(TAG " SD_EN=HIGH, SD_DETECT(11)=%d (%s)\n", sd_det,
+             sd_det == LOW ? "card present" : "NO card / detect idles high");
+
+  static constexpr uint32_t SD_FREQS[] = {1000000, 2000000, 4000000};
+  bool sd_ok = false;
+  for (uint32_t freq : SD_FREQS) {
+    LOG.printf(TAG " SD.begin(CS=%d, %lu kHz) ...\n",
+               PIN_SD_CS, (unsigned long)(freq / 1000));
+    if (SD.begin(PIN_SD_CS, *spi, freq)) {
+      sd_ok = true;
+      break;
+    }
+    SD.end();
+    delay(20);
+  }
+
+  if (!sd_ok) {
     LOG.println(TAG " SD.begin FAILED -- aborting");
-    LOG.println(TAG "   - Is the card inserted and formatted as FAT/FAT32?");
+    LOG.println(TAG "   - Card formatted FAT32/exFAT with an MBR partition table?");
     LOG.println(TAG "   - CS is GPIO8; SCK/MOSI/MISO are shared with the panel");
-    fail_on_panel("SD CARD FAILED",
-                  "insert a FAT32 card, then press RESET",
-                  "cards >32 GB are usually exFAT and will NOT mount");
+
+    // Raw CMD0 probe: with CS low, clock >=74 cycles, send CMD0, read R1.
+    //   0x01 -> card is alive; the mount failure is filesystem/library-side
+    //   0xFF -> the card never drives MISO: wiring or power problem. On the
+    //           Sticky this is almost always a missing SD_EN=GPIO10 drive.
+    spi->beginTransaction(SPISettings(400000, MSBFIRST, SPI_MODE0));
+    digitalWrite(PIN_SD_CS, LOW);
+    uint8_t r1 = 0xFF;
+    for (int i = 0; i < 10; i++) spi->transfer(0xFF);
+    spi->transfer(0x40); spi->transfer(0x00); spi->transfer(0x00);
+    spi->transfer(0x00); spi->transfer(0x00); spi->transfer(0x95);
+    for (int i = 0; i < 8 && r1 == 0xFF; i++) r1 = (uint8_t)spi->transfer(0xFF);
+    digitalWrite(PIN_SD_CS, HIGH);
+    spi->endTransaction();
+    LOG.printf(TAG " raw CMD0 R1 = 0x%02X (%s)\n", r1,
+               r1 == 0x01 ? "card alive -> filesystem issue" :
+               r1 == 0xFF ? "NO RESPONSE -> MISO wiring or power" :
+                            "unexpected response");
+
+    // Echo the decisive byte onto the panel too: the Sticky's serial is the
+    // native-USB CDC port, which is easy to miss on the Serial Monitor.
+    char diag[40];
+    snprintf(diag, sizeof(diag), "raw CMD0 R1 = 0x%02X", r1);
+    fail_on_panel("SD CARD FAILED", diag,
+                  r1 == 0xFF ? "card not answering: wiring/power" :
+                  r1 == 0x01 ? "card answers: not a wiring issue" :
+                               "unexpected response byte");
     return;
   }
   LOG.printf("[sd] mounted; card size = %llu MB\n",
@@ -366,6 +399,14 @@ void setup() {
              img.width, img.height,
              (unsigned long)((size_t)img.width * img.height * 3 / 1024));
   log_mem("after image decoded");
+
+  // Reading is done -- release the SD slot and bus before the e-paper refresh,
+  // so the card cannot drive the shared MISO (GPIO12) while the panel updates.
+  // SD.end() is safe here: SDFS::end() only unmounts + sdcard_uninit() and does
+  // NOT end the shared SPIClass, so the display driver keeps its SPI ownership.
+  // CS is driven high explicitly to fully tri-state the card.
+  SD.end();
+  digitalWrite(PIN_SD_CS, HIGH);
 
   if (show_image_on_panel(&img)) LOG.println(TAG " frame pushed OK");
   else {

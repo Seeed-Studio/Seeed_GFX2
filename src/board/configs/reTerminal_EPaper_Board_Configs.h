@@ -82,14 +82,19 @@ struct Config_reTerminal_E1004_Board : reTerminal_ePaper_CommonConfig {
 struct Config_reTerminal_Sticky_Board : reTerminal_ePaper_CommonConfig {
     static const char* name() { return "reTerminal Sticky"; }
     static BoardPinConfig pins() { return stickyPins(true); }
-    // The inherited sdChipSelectPin/sdDetectPin/sdEnablePin (GPIO14/15/16)
-    // belong to the E1001-generation microSD slot; on the Sticky those GPIOs
-    // are the display MOSI/CS/DC. The Sticky microSD CS is GPIO8, and the
-    // card shares MISO=GPIO12 with the panel, so the board layer must
-    // deselect it before the auto-detect probe reads over that line.
+    // Sticky microSD slot, verified against the shipping demo firmware
+    // (reTerminal_Sticky_Bunny src/board/pin_config.h):
+    //   SD_CS=GPIO8, SD_EN=GPIO10, SD_DETECT=GPIO11, and the card shares
+    //   SCK=13 / MOSI=14 / MISO=12 with the panel. The inherited
+    //   sdChipSelectPin/sdDetectPin/sdEnablePin (GPIO14/15/16) belong to the
+    //   E1001-generation slot; on the Sticky GPIO14/15/16 are the panel
+    //   MOSI/CS/DC. SD_EN is the slot power/level-shifter enable (active
+    //   HIGH): if it is never driven, the card is unpowered and every board
+    //   reports "SD CARD FAILED" regardless of card or unit. begin() drives
+    //   it HIGH and deselects SD_CS before the panel probe reads shared MISO.
     static constexpr int8_t sdChipSelectPin() { return 8; }
-    static constexpr int8_t sdDetectPin() { return -1; }
-    static constexpr int8_t sdEnablePin() { return -1; }
+    static constexpr int8_t sdDetectPin() { return 11; }
+    static constexpr int8_t sdEnablePin() { return 10; }
 };
 
 #endif // SEEED_GFX_RETERMINAL_EPAPER_BOARD_CONFIGS_H
