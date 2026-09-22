@@ -39,7 +39,7 @@ void Driver_SSD1677::ensureBaseline() {
     if (_partialBaseline) return;
     const size_t bytes = ((size_t)(_init_width + 7U) / 8U) * _init_height;
     _partialBaseline = static_cast<uint8_t*>(malloc(bytes));
-    if (_partialBaseline) memset(_partialBaseline, 0x00, bytes);  // all-white raw
+    if (_partialBaseline) memset(_partialBaseline, 0xFF, bytes);  // all-white raw (1 = white)
 }
 
 void Driver_SSD1677::busyWait() {
@@ -123,7 +123,7 @@ void Driver_SSD1677::setRotation(uint8_t m) {
     }
 }
 
-void Driver_SSD1677::invertDisplay(bool) {}
+void Driver_SSD1677::invertDisplay(bool invert) { _invertMono = invert; }
 
 void Driver_SSD1677::displayOn()  { update(); }
 void Driver_SSD1677::displayOff() {}

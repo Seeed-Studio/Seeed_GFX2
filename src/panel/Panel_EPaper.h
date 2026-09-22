@@ -9,7 +9,7 @@
  * The frame buffer is a standalone allocation managed by this class.
  * At 1bpp: each byte = 8 horizontal pixels, MSB = leftmost pixel.
  * At 4bpp: each byte = 2 horizontal pixels, high nibble = left pixel.
- * Monochrome uses 0 = white and 1 = black. Indexed4 uses the
+ * Monochrome uses 1 = white and 0 = black. Indexed4 uses the
  * controller palette values defined by this panel implementation.
  */
 

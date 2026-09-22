@@ -142,6 +142,10 @@ Driver_UC8179::Driver_UC8179(uint16_t w, uint16_t h)
     , _use_otp_lut(false)
     , _has_checked_otp(false)
     , _write_plane(UC8179_DTM2)   // default: write to new data plane
+    , _invert_display(false)
+    , _partialActive(false)
+    , _oldCache(nullptr)
+    , _winX0(0), _winY0(0), _winX1(0), _winY1(0)
 {
     _width  = w;
     _height = h;
@@ -250,9 +254,11 @@ void Driver_UC8179::setRotation(uint8_t m) {
 // Display control
 
 void Driver_UC8179::invertDisplay(bool invert) {
-    // ePaper does not support runtime inversion in the same way as TFT.
-    // Inversion is handled by swapping old/new data planes.
-    (void)invert;
+    // User-requested black/white swap. The framebuffer now stores 1 = white,
+    // matching this glass, so no product config requests it anymore. The flag
+    // remains as an explicit escape hatch; streamData() inverts the 1-bit
+    // data plane only while it is set.
+    _invert_display = invert;
 }
 
 void Driver_UC8179::displayOn() {
@@ -290,6 +296,10 @@ void Driver_UC8179::setAddrWindow(uint16_t xs, uint16_t ys,
     _bus->writeData(ye >> 8);
     _bus->writeData(ye & 0xFF);
     _bus->writeData(0x01);   // scan mode
+
+    // Remember the window so the partial-refresh old-plane push can read the
+    // matching bytes out of _oldCache.
+    _winX0 = xs; _winY0 = ys; _winX1 = xe; _winY1 = ye;
 }
 
 // Pixel writing
@@ -351,6 +361,7 @@ void Driver_UC8179::updateGray() {
 }
 
 void Driver_UC8179::updatePartial() {
+    _partialActive = false;
     update();
 }
 
@@ -543,35 +554,110 @@ void Driver_UC8179::initPartial() {
 // Wakeup sequences (reset + init)
 
 void Driver_UC8179::wakeupFull() {
+    _partialActive = false;
     reset();
     initFull();
 }
 
 void Driver_UC8179::wakeupFast() {
+    _partialActive = false;
     reset();
     initFast();
 }
 
 void Driver_UC8179::wakeGray() {
+    _partialActive = false;
     reset();
     initGray();
 }
 
 void Driver_UC8179::wakeupPartial() {
+    _partialActive = false;
     reset();
     initPartial();
+    // Allocate the old-frame baseline on the first partial refresh; a full
+    // refresh before it already populated _oldCache via pushNewColors().
+    ensureOldCache();
+    _partialActive = true;
 }
 
 // Color data push methods
 
 void Driver_UC8179::pushNewColors(const uint8_t* colors, size_t len) {
+    if (_partialActive) {
+        // Partial session: the differential waveform needs the real "old"
+        // window in DTM1 as well as the new window in DTM2. A full refresh
+        // pushes both planes; pushing new-only here (as the original library
+        // did) ghosts once the controller RAM was lost to deep sleep.
+        pushOldWindow();
+        _bus->writeCommand(UC8179_DTM2);   // New data (0x13)
+        streamData(colors, len);
+        patchOldCache(colors, len);
+        return;
+    }
     _bus->writeCommand(UC8179_DTM2);   // New data (0x13)
-    _bus->writeData(colors, len);
+    streamData(colors, len);
+    // A full-frame push becomes the new "previous frame" for the next partial
+    // refresh (the glass now shows this content after the update completes).
+    if (colors && len >= frameBytes()) {
+        ensureOldCache();
+        if (_oldCache) memcpy(_oldCache, colors, frameBytes());
+    }
 }
 
 void Driver_UC8179::pushOldColors(const uint8_t* colors, size_t len) {
     _bus->writeCommand(UC8179_DTM1);   // Old data (0x10)
-    _bus->writeData(colors, len);
+    streamData(colors, len);
+}
+
+void Driver_UC8179::streamData(const uint8_t* data, size_t len) {
+    if (!data || len == 0) return;
+    if (_invert_display) {
+        for (size_t i = 0; i < len; i++) {
+            _bus->writeData(static_cast<uint8_t>(~data[i]));
+        }
+    } else {
+        _bus->writeData(data, len);
+    }
+}
+
+void Driver_UC8179::ensureOldCache() {
+    if (_oldCache) return;
+    _oldCache = static_cast<uint8_t*>(malloc(frameBytes()));
+    if (_oldCache) {
+        // Fresh baseline is all-white (0xFF in the framebuffer), matching
+        // Panel_EPaper's own first-refresh previous-frame assumption.
+        memset(_oldCache, 0xFF, frameBytes());
+    }
+}
+
+void Driver_UC8179::pushOldWindow() {
+    ensureOldCache();
+    // If the cache could not be allocated there is no trustworthy old plane;
+    // fall through to a new-only push (identical to the original behavior).
+    if (!_oldCache) return;
+    const uint16_t w_bytes = static_cast<uint16_t>(_winX1 - _winX0 + 1U) / 8U;
+    const uint16_t h      = static_cast<uint16_t>(_winY1 - _winY0 + 1U);
+    const uint16_t stride = _init_width / 8;
+    _bus->writeCommand(UC8179_DTM1);   // Old data (0x10)
+    for (uint16_t row = 0; row < h; ++row) {
+        streamData(_oldCache + static_cast<size_t>(_winY0 + row) * stride +
+                       (_winX0 / 8U),
+                   w_bytes);
+    }
+}
+
+void Driver_UC8179::patchOldCache(const uint8_t* data, size_t len) {
+    if (!data || !_oldCache) return;
+    const uint16_t w_bytes = static_cast<uint16_t>(_winX1 - _winX0 + 1U) / 8U;
+    const uint16_t h      = static_cast<uint16_t>(_winY1 - _winY0 + 1U);
+    if (len < static_cast<size_t>(w_bytes) * h) return;
+    const uint16_t stride = _init_width / 8;
+    for (uint16_t row = 0; row < h; ++row) {
+        memcpy(_oldCache + static_cast<size_t>(_winY0 + row) * stride +
+                   (_winX0 / 8U),
+               data + static_cast<size_t>(row) * w_bytes, w_bytes);
+    }
 }
 
 void Driver_UC8179::pushNewColorsFlip(const uint8_t* colors, size_t len) {

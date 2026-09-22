@@ -102,7 +102,15 @@ void applyProductMirror(PanelT* panel, std::true_type) {
 template <typename PanelT>
 void applyProductMirror(PanelT*, std::false_type) {}
 
-template <typename BoardT, typename DriverT, typename PanelT, uint8_t RGBOrder = 0xFF, bool Mirror = false>
+template <typename PanelT>
+void applyProductInversion(PanelT* panel, std::true_type) {
+    panel->invertDisplay(true);
+}
+
+template <typename PanelT>
+void applyProductInversion(PanelT*, std::false_type) {}
+
+template <typename BoardT, typename DriverT, typename PanelT, uint8_t RGBOrder = 0xFF, bool Mirror = false, bool Invert = false>
 GfxResult createConfigured(const ProductDescriptor& product,
                            DisplayInstance& instance) {
     BoardT* board = new (std::nothrow) BoardT();
@@ -131,6 +139,11 @@ GfxResult createConfigured(const ProductDescriptor& product,
     // board, so it is applied here on the panel — letting the same product
     // entry work unchanged across any compatible board.
     applyProductMirror(panel, std::integral_constant<bool, Mirror>());
+    // Black/white polarity is likewise a glass property, applied here on the
+    // panel rather than the adapter board. With the 1=white framebuffer
+    // convention no product currently requests inversion; the parameter
+    // remains for glass that genuinely stores the opposite polarity.
+    applyProductInversion(panel, std::integral_constant<bool, Invert>());
     if (product.storageWidth != 0 || product.storageHeight != 0) {
         const GfxResult geometry =
             panel->configureVisibleArea(product.width, product.height);

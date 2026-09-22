@@ -7,7 +7,7 @@
  * method sends the buffer to the physical display.
  *
  * Frame buffer format:
- *   1bpp: each byte = 8 horizontal pixels, MSB = leftmost, 0 = white, 1 = black
+ *   1bpp: each byte = 8 horizontal pixels, MSB = leftmost, 1 = white, 0 = black
  *   4bpp: each byte = 2 horizontal pixels, high nibble = left, indexed color
  */
 
@@ -143,8 +143,13 @@ bool Panel_EPaper::begin() {
         return false;
     }
 
-    // Both supported formats encode white as zero in this panel buffer.
-    memset(_frameBuffer, 0x00, frameBufferSize());
+    // Monochrome (1bpp) encodes white as 0xFF (each set bit is a white pixel);
+    // the 4bpp indexed palette encodes white as index 0.
+    if (_bpp == 1) {
+        memset(_frameBuffer, 0xFF, frameBufferSize());
+    } else {
+        memset(_frameBuffer, 0x00, frameBufferSize());
+    }
 
     _sleeping = false;  // Display is awake after init (no sleep called yet)
     _initialized = true;
@@ -243,9 +248,11 @@ uint8_t Panel_EPaper::rotation() const {
 
 // IPanel interface: Display control
 
-void Panel_EPaper::invertDisplay(bool /*i*/) {
-    // ePaper does not support inversion in hardware.
-    // Inversion can be achieved by inverting the frame buffer.
+void Panel_EPaper::invertDisplay(bool i) {
+    // ePaper has no hardware inversion command; forward to the driver, which
+    // inverts the 1-bit data plane at push time. This mirrors Panel_TFT and
+    // Panel_OLED, which delegate to _driver.invertDisplay().
+    _driver.invertDisplay(i);
 }
 
 void Panel_EPaper::setBacklight(uint8_t /*brightness*/) {
@@ -283,8 +290,8 @@ DisplayCapabilities Panel_EPaper::capabilities() const {
     caps.nativeFormat = (_bpp == 1) ? PixelFormat::Mono1
         : ((_colorMode == COLOR_MODE_NONE) ? PixelFormat::Gray4 : PixelFormat::Indexed4);
     caps.readback = true; // Reads are served from the owned frame buffer.
-    caps.partialRefresh = _driver.supportsPartialRefresh();
-    caps.fastRefresh = _driver.supportsFastRefresh();
+    caps.partialRefresh = (_bpp == 1) && _driver.supportsPartialRefresh();
+    caps.fastRefresh = (_bpp == 1) && _driver.supportsFastRefresh();
     caps.temperatureCompensation = _driver.supportsTemperatureCompensation();
     caps.deepSleep = _driver.supportsDeepSleep();
     const uint16_t driverAlignment = _driver.partialXAlignment();
@@ -327,13 +334,13 @@ void Panel_EPaper::writePixel(uint16_t color) {
 
     if (_bpp == 1) {
         // 1bpp: 8 pixels per byte, MSB = leftmost
-        // Panel buffer: 0 = white, 1 = black
+        // Panel buffer: 1 = white, 0 = black (mainstream e-paper convention)
         size_t byteIdx = static_cast<size_t>(physicalY) * frameStride() + (physicalX >> 3);
         uint8_t bit = 0x80 >> (physicalX & 7);
         if (color) {
-            _frameBuffer[byteIdx] &= ~bit;  // white (0)
+            _frameBuffer[byteIdx] |= bit;   // white (1)
         } else {
-            _frameBuffer[byteIdx] |= bit;   // black (1)
+            _frameBuffer[byteIdx] &= ~bit;  // black (0)
         }
     } else if (_bpp == 4) {
         // 4bpp: 2 pixels per byte, high nibble = left pixel
@@ -479,7 +486,7 @@ uint16_t Panel_EPaper::readPixel(uint16_t x, uint16_t y) {
     if (_bpp == 1) {
         size_t byteIdx = static_cast<size_t>(physicalY) * frameStride() + (physicalX >> 3);
         uint8_t bit = 0x80 >> (physicalX & 7);
-        return (_frameBuffer[byteIdx] & bit) ? 0x0000 : 0xFFFF;  // 1=black, 0=white
+        return (_frameBuffer[byteIdx] & bit) ? 0xFFFF : 0x0000;  // 1=white, 0=black
     } else if (_bpp == 4) {
         size_t byteIdx = static_cast<size_t>(physicalY) * frameStride() + (physicalX >> 1);
         const uint8_t value = (physicalX & 1)
@@ -620,7 +627,7 @@ GfxResult Panel_EPaper::refreshFull(bool fast) {
         // which pixels need to transition. We must push the PREVIOUS
         // frame content as old data, and the CURRENT frame buffer as new data.
         if (!_oldFrameBuffer) {
-            // First update: old frame is all white (0x00)
+            // First update: old frame is all white (0xFF)
             _oldFrameBuffer = static_cast<uint8_t*>(allocateEPaperMemory(bufSize));
             if (!_oldFrameBuffer) {
                 free(vfb);
@@ -629,7 +636,7 @@ GfxResult Panel_EPaper::refreshFull(bool fast) {
                 return GfxResult(GfxError::AllocationFailed,
                                  "ePaper previous-frame allocation failed");
             }
-            memset(_oldFrameBuffer, 0x00, bufSize);
+            memset(_oldFrameBuffer, 0xFF, bufSize);
         }
 
         if (mirrorHorizontal) {
@@ -915,8 +922,9 @@ void Panel_EPaper::drawBufferPixel(int32_t x, int32_t y,
                   static_cast<uint16_t>(x + pixels - 1), static_cast<uint16_t>(y));
     for (uint8_t i = 0; i < pixels; ++i) {
         if (bpp == 1) {
-            // Packed monochrome uses 1=black, while writePixel accepts RGB565.
-            writePixel((color & (0x80U >> i)) ? 0x0000 : 0xFFFF);
+            // Packed monochrome uses 1=white (the framebuffer convention),
+            // while writePixel accepts RGB565.
+            writePixel((color & (0x80U >> i)) ? 0xFFFF : 0x0000);
         } else {
             const uint8_t nibble = (i == 0) ? ((color >> 4) & 0x0F) : (color & 0x0F);
             writePixel(_colorMode == COLOR_MODE_NONE ? nibble : decode4BitColor(nibble));
@@ -983,7 +991,7 @@ bool Panel_EPaper::initGrayMode(uint8_t grayLevel) {
     if (!allocateFrameBuffer()) {
         _bpp = 1;
         _grayLevel = 0;
-        if (allocateFrameBuffer()) memset(_frameBuffer, 0x00, frameBufferSize());
+        if (allocateFrameBuffer()) memset(_frameBuffer, 0xFF, frameBufferSize());
         return false;
     }
 
@@ -1007,8 +1015,8 @@ bool Panel_EPaper::deinitGrayMode() {
         return false;
     }
 
-    // Monochrome buffer encodes white as zero.
-    memset(_frameBuffer, 0x00, frameBufferSize());
+    // Monochrome buffer encodes white as one (0xFF).
+    memset(_frameBuffer, 0xFF, frameBufferSize());
     return true;
 }
 
@@ -1121,7 +1129,7 @@ bool Panel_EPaper::initColorfulMode() {
     if (!allocateFrameBuffer()) {
         _bpp = 1;
         _colorMode = COLOR_MODE_NONE;
-        if (allocateFrameBuffer()) memset(_frameBuffer, 0x00, frameBufferSize());
+        if (allocateFrameBuffer()) memset(_frameBuffer, 0xFF, frameBufferSize());
         return false;
     }
 
@@ -1150,7 +1158,7 @@ bool Panel_EPaper::initBWRYMode() {
     if (!allocateFrameBuffer()) {
         _bpp = 1;
         _colorMode = COLOR_MODE_NONE;
-        if (allocateFrameBuffer()) memset(_frameBuffer, 0x00, frameBufferSize());
+        if (allocateFrameBuffer()) memset(_frameBuffer, 0xFF, frameBufferSize());
         return false;
     }
 
@@ -1241,12 +1249,12 @@ void Panel_EPaper::clearStoragePadding(uint8_t* buffer) {
         for (uint16_t row = 0; row < _init_height; ++row) {
             uint8_t* rowData = buffer + static_cast<size_t>(row) * stride;
             if (visibleBits != 0 && visibleBytes != 0) {
-                const uint8_t keepMask =
-                    static_cast<uint8_t>(0xFFU << (8U - visibleBits));
-                rowData[visibleBytes - 1U] &= keepMask;
+                const uint8_t padMask =
+                    static_cast<uint8_t>(0xFFU >> visibleBits);
+                rowData[visibleBytes - 1U] |= padMask;
             }
             if (visibleBytes < stride) {
-                memset(rowData + visibleBytes, 0x00, stride - visibleBytes);
+                memset(rowData + visibleBytes, 0xFF, stride - visibleBytes);
             }
         }
         return;

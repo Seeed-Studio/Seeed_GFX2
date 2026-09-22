@@ -18,19 +18,19 @@ void Driver_ED103TC2::setAddrWindow(uint16_t xs, uint16_t ys,
 }
 
 void Driver_ED103TC2::update() {
-    // Panel_EPaper stores monochrome pixels as 0=white and 1=black, so the
-    // IT8951 1bpp lookup table must map background (bit 0) to full white and
-    // foreground (bit 1) to black.  Use 0xFF rather than 0xF0 for the white
+    // Panel_EPaper stores monochrome pixels as 1=white and 0=black, so the
+    // IT8951 1bpp lookup table must map foreground (bit 1) to full white and
+    // background (bit 0) to black.  Use 0xFF rather than 0xF0 for the white
     // endpoint; the latter is only gray level 15 shifted into the high nibble
     // and cannot perform a true white clearing refresh.
     tconDisplayArea1bpp(0, 0, _panelWidth, _panelHeight,
-                        IT8951_MODE_2, 0xFF, 0x00);
+                        IT8951_MODE_2, 0x00, 0xFF);
 }
 
 void Driver_ED103TC2::updatePartial() {
     tconDisplayArea1bpp(_window.usX, _window.usY,
                         _window.usWidth, _window.usHeight,
-                        IT8951_MODE_1, 0xFF, 0x00);
+                        IT8951_MODE_1, 0x00, 0xFF);
 }
 
 void Driver_ED103TC2::updateGray() {

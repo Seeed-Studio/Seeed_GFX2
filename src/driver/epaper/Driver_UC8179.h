@@ -190,6 +190,10 @@ private:
     bool     _use_otp_lut;
     bool     _has_checked_otp;
     uint8_t  _write_plane;
+    bool     _invert_display;             // invertDisplay() toggle (user; off = no inversion)
+    bool     _partialActive;              // between wakeupPartial() and updatePartial()
+    uint8_t* _oldCache;                   // last displayed 1bpp frame (diff "old" plane)
+    uint16_t _winX0, _winY0, _winX1, _winY1; // last partial window (setAddrWindow)
 
     // Internal helpers
 
@@ -210,6 +214,22 @@ private:
 
     /** Initialize using internal OTP for grayscale mode */
     void initGrayOTP();
+
+    /** Invert-aware data write; inverts each byte only while _invert_display
+     *  is set (an explicit user request). */
+    void streamData(const uint8_t* data, size_t len);
+
+    /** Full 1bpp frame size in bytes. */
+    size_t frameBytes() const { return (size_t)(_init_width / 8) * _init_height; }
+
+    /** Lazily allocate and white-initialize the old-frame cache. */
+    void ensureOldCache();
+
+    /** Stream the current partial window's old plane (DTM1) from the cache. */
+    void pushOldWindow();
+
+    /** Stitch a pushed partial window into the old-frame cache. */
+    void patchOldCache(const uint8_t* data, size_t len);
 };
 
 #endif // SEEED_GFX_DRIVER_UC8179_H

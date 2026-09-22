@@ -136,17 +136,16 @@ static inline uint8_t ssd2677Gray4NibbleToPixel(uint8_t nibble) {
     }
 }
 
-// Expand one 1bpp byte (bit=1 black, bit=0 white, MSB leftmost) into two
+// Expand one 1bpp byte (bit=1 white, bit=0 black, MSB leftmost) into two
 // output bytes of 2-bit pairs. The SSD2677 native pixel code is black -> 0x00,
-// white -> 0x03 — the same polarity the gray4 path uses below. (The previous
-// black -> 0x03 mapping inverted every monochrome frame.) out[0] carries
+// white -> 0x03 — the same polarity the gray4 path uses below. out[0] carries
 // pixels 0-3, out[1] pixels 4-7.
 static inline void ssd2677ExpandMonoByte(uint8_t mono, uint8_t& o0,
                                          uint8_t& o1) {
     o0 = 0;
     o1 = 0;
     for (uint8_t bit = 0; bit < 8; bit++) {
-        const uint8_t pair = ((mono >> (7 - bit)) & 1) ? 0x00 : 0x03;
+        const uint8_t pair = ((mono >> (7 - bit)) & 1) ? 0x03 : 0x00;
         if (bit < 4) o0 |= static_cast<uint8_t>(pair << (6 - bit * 2));
         else         o1 |= static_cast<uint8_t>(pair << (14 - bit * 2));
     }
@@ -154,17 +153,17 @@ static inline void ssd2677ExpandMonoByte(uint8_t mono, uint8_t& o0,
 
 // Pack one 1bpp byte from the previous (old) frame and one from the current
 // (new) frame into two bytes of 2-bit transition pairs (old<<1 | new). The
-// framebuffer bits are 1=black / 0=white, but this panel's native DTM codes
-// are 0x00=black / 0x03=white (the same polarity as the monochrome and gray4
-// paths), so each bit is inverted first: an unchanged-white pixel emits 0b11
-// and an unchanged-black pixel 0b00. o0 carries pixels 0-3, o1 pixels 4-7.
+// framebuffer bits are 1=white / 0=black, matching this panel's native DTM
+// codes 0x00=black / 0x03=white, so each bit maps straight through: an
+// unchanged-white pixel emits 0b11 and an unchanged-black pixel 0b00.
+// o0 carries pixels 0-3, o1 pixels 4-7.
 static inline void ssd2677PackInterleave(uint8_t prev, uint8_t cur,
                                          uint8_t& o0, uint8_t& o1) {
     o0 = 0;
     o1 = 0;
     for (uint8_t bit = 0; bit < 8; bit++) {
-        const uint8_t oldW = static_cast<uint8_t>(((prev >> (7 - bit)) & 1) ^ 1);
-        const uint8_t newW = static_cast<uint8_t>(((cur >> (7 - bit)) & 1) ^ 1);
+        const uint8_t oldW = static_cast<uint8_t>((prev >> (7 - bit)) & 1);
+        const uint8_t newW = static_cast<uint8_t>((cur >> (7 - bit)) & 1);
         const uint8_t pair = static_cast<uint8_t>((oldW << 1) | newW);
         if (bit < 4) o0 |= static_cast<uint8_t>(pair << (6 - bit * 2));
         else         o1 |= static_cast<uint8_t>(pair << (14 - bit * 2));
@@ -391,8 +390,8 @@ void Driver_SSD2677::ensurePartialBuffers() {
     // though content is displayed; the diff then re-drives same-polarity
     // transitions, which converges visually (white pixels are only ever
     // driven white). Full-refresh pushes overwrite both copies anyway.
-    memset(_partialPrev, 0x00, frame_bytes);
-    memset(_partialCur, 0x00, frame_bytes);
+    memset(_partialPrev, 0xFF, frame_bytes);
+    memset(_partialCur, 0xFF, frame_bytes);
 }
 
 void Driver_SSD2677::patchPartialWindow(const uint8_t* data, size_t len) {
