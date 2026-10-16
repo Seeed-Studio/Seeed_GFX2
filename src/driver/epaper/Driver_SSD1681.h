@@ -14,6 +14,7 @@
 class Driver_SSD1681 : public IDriver {
 public:
     Driver_SSD1681(uint16_t w = 200, uint16_t h = 200, int8_t busyPin = -1);
+    ~Driver_SSD1681() override;
 
     const char* name() const override { return "SSD1681"; }
     uint16_t width() const override { return _width; }
@@ -44,6 +45,7 @@ public:
     void setBusyPin(int pin) override { _busyPin = static_cast<int8_t>(pin); }
     void update() override;
     void updateFast() override;
+    void wakeFast() override;
     void updateGray() override;
     void updatePartial() override;
     void initGray();
@@ -51,10 +53,9 @@ public:
     void wakeGray() override;
     void wakePartial() override;
     void pushColors(const uint8_t* data, uint16_t w, uint16_t h);
-    void pushNewColors(const uint8_t* data, size_t len) override {
-        if (!_bus || !data) return;
-        _bus->writeCommand(0x24); _bus->writeData(data, len);
-    }
+    /// Push the new plane (0x24). During a partial session the cached old
+    /// plane (0x26) for the same window is pushed first.
+    void pushNewColors(const uint8_t* data, size_t len) override;
     void pushOldColors(const uint8_t* data, size_t len) override {
         if (!_bus || !data) return;
         _bus->writeCommand(0x26); _bus->writeData(data, len);
@@ -65,6 +66,9 @@ public:
     void pushGrayColors(const uint8_t* data, uint16_t w, uint16_t h);
     void pushGrayColors(const uint8_t* data, size_t len) override {
         (void)len;
+        // Gray data cannot be represented by the 1bpp old-plane cache. A
+        // monochrome full refresh must re-establish the partial baseline.
+        invalidateOldCache();
         pushGrayColors(data, _init_width, _init_height);
     }
     void pushGrayColorsFlip(const uint8_t* data, uint16_t w, uint16_t h);
@@ -73,8 +77,29 @@ public:
 
 private:
     void busyWait();
+
+    // ---- Driver-local old-plane cache for partial refresh -----------------
+    // Valid only after a confirmed monochrome full/fast refresh; invalidated
+    // on any refresh failure.
+    size_t cacheStride() const;
+    size_t frameBytes() const;
+    bool ensureOldCache();
+    void invalidateOldCache();
+    bool windowGeometry(size_t* rowBytes, size_t* rows, size_t* total) const;
+    void pushOldWindow(size_t rowBytes, size_t rows);
+    void cacheWindow(const uint8_t* data, size_t rowBytes, size_t rows);
+    void finishRefresh(bool success);
+
     uint16_t _init_width, _init_height;
     int8_t _busyPin;
+
+    uint8_t* _oldCache = nullptr;      // full-frame 1bpp controller-space snapshot (1 = white)
+    uint16_t _winX0 = 0, _winY0 = 0, _winX1 = 0, _winY1 = 0;  // last setAddrWindow
+    bool _partialActive = false;        // between wakePartial() and updatePartial()/sleep()/init()
+    bool _lastPartialTimedOut = false;  // updatePartial BUSY timeout -> sleep() skips DSLP once
+    bool _oldCacheValid = false;        // cache exactly matches the glass
+    bool _cacheUpdatePending = false;   // cache changed; refresh not confirmed
+    bool _fastFallbackFull = false;     // first fast request uses 0xF7
 };
 
 #endif // SEEED_GFX_DRIVER_SSD1681_H

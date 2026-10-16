@@ -1,22 +1,23 @@
 /**
  * @file   Driver_SSD1680.cpp
  * @brief  SSD1680 ePaper display driver implementation
- *
- * All macro-based code from the original Seeed_GFX-master library
- * (SSD1680_Defines.h, SSD1680_Init.h, SSD1680_Rotation.h) has been
- * converted into proper C++ class methods.
  */
 
 #include "Driver_SSD1680.h"
 #include "../../core/Gpio.h"
-
-// Constructor
+#include <stdlib.h>
+#include <string.h>
 
 Driver_SSD1680::Driver_SSD1680(uint16_t w, uint16_t h)
     : _init_width(w), _init_height(h)
 {
     _width  = w;
     _height = h;
+}
+
+Driver_SSD1680::~Driver_SSD1680() {
+    free(_oldCache);
+    _oldCache = nullptr;
 }
 
 // Private helpers
@@ -27,7 +28,6 @@ void Driver_SSD1680::checkBusy() {
 }
 
 void Driver_SSD1680::reset() {
-    // Hardware reset via RST pin
     if (_rst_pin >= 0) {
         digitalWrite(_rst_pin, LOW);
         delay(10);
@@ -37,27 +37,106 @@ void Driver_SSD1680::reset() {
 
     checkBusy();
 
-    // Software reset
     _bus->writeCommand(SSD1680_SWRESET);  // 0x12
     checkBusy();
+}
+
+// Driver-managed partial old-plane cache ------------------------------------
+// Controller-space 1bpp data; valid only after a confirmed monochrome
+// full/fast refresh, invalidated by any ambiguous refresh failure.
+bool Driver_SSD1680::ensureOldCache() {
+    if (_oldCache) return true;
+    const size_t fb = frameBytes();
+    _oldCache = static_cast<uint8_t*>(malloc(fb));
+    if (_oldCache) {
+        memset(_oldCache, 0xFF, fb);
+    }
+    _oldCacheValid = false;
+    return _oldCache != nullptr;
+}
+
+void Driver_SSD1680::invalidateOldCache() {
+    free(_oldCache);
+    _oldCache = nullptr;
+    _oldCacheValid = false;
+    _cacheUpdatePending = false;
+    _partialActive = false;
+}
+
+bool Driver_SSD1680::windowGeometry(size_t* rowBytes, size_t* rows,
+                                    size_t* total) const {
+    // Accept only in-bounds windows that map exactly onto byte-aligned cache
+    // rows (8px x-origin and width); anything else would access the cache OOB.
+    if (_winX0 > _winX1 || _winY0 > _winY1) return false;
+    if (_winX1 >= _init_width || _winY1 >= _init_height) return false;
+    if (_winX0 & 7U) return false;
+    const size_t w = (size_t)_winX1 - _winX0 + 1U;
+    if (w & 7U) return false;
+    const size_t rb = w >> 3;
+    const size_t stride = cacheStride();
+    if (rb == 0 || rb > stride) return false;
+    if ((size_t)(_winX0 >> 3) + rb > stride) return false;
+    *rowBytes = rb;
+    *rows  = (size_t)_winY1 - _winY0 + 1U;
+    *total = rb * (*rows);
+    return true;
+}
+
+void Driver_SSD1680::pushOldWindow(size_t rowBytes, size_t rows) {
+    const size_t stride = cacheStride();
+    _bus->writeCommand(SSD1680_RAMRED);  // 0x26
+    for (size_t r = 0; r < rows; ++r) {
+        _bus->writeData(_oldCache + ((size_t)_winY0 + r) * stride
+                                    + (size_t)(_winX0 >> 3),
+                        rowBytes);
+    }
+}
+
+void Driver_SSD1680::cacheWindow(const uint8_t* data, size_t rowBytes,
+                                 size_t rows) {
+    if (!data || !_oldCache) return;
+    const size_t stride = cacheStride();
+    for (size_t r = 0; r < rows; ++r) {
+        memcpy(_oldCache + ((size_t)_winY0 + r) * stride
+                           + (size_t)(_winX0 >> 3),
+               data + r * rowBytes, rowBytes);
+    }
+    _oldCacheValid = false;
+    _cacheUpdatePending = true;
+}
+
+void Driver_SSD1680::finishRefresh(bool success) {
+    if (!success) {
+        // BUSY timeout or bus failure leaves the final glass state unknown.
+        invalidateOldCache();
+        return;
+    }
+    if (_cacheUpdatePending) {
+        _oldCacheValid = true;
+        _cacheUpdatePending = false;
+    }
 }
 
 // IDriver :: init
 
 bool Driver_SSD1680::init(IBus& bus) {
+    // Reset cache session state before the normal applyWaveformProfile()
+    // early return. _oldCache is kept: bistable glass retains the image.
+    if (_cacheUpdatePending) invalidateOldCache();
+    _partialActive = false;
+    _lastPartialTimedOut = false;
+    _fastFallbackFull = false;
+
     _bus = &bus;
-    // Configure enable pin if provided
     if (_enable_pin >= 0) {
         pinMode(_enable_pin, OUTPUT);
         digitalWrite(_enable_pin, HIGH);
     }
 
-    // Configure busy pin as input if provided
     if (_busy_pin >= 0) {
         pinMode(_busy_pin, INPUT);
     }
 
-    // Hardware + software reset
     reset();
     if (lastOperationError() != DriverOperationError::None) return false;
 
@@ -67,7 +146,7 @@ bool Driver_SSD1680::init(IBus& bus) {
     }
     if (lastOperationError() != DriverOperationError::None) return false;
 
-    // ---- Full init sequence (from SSD1680_Init.h) ------------------------
+    // ---- Full init sequence ----
 
     // Border waveform
     _bus->writeCommand(SSD1680_PTLIN);  // 0x3C
@@ -124,13 +203,9 @@ void Driver_SSD1680::setRotation(uint8_t m) {
     _bus->writeCommand(SSD1680_DTM);  // 0x11
 
     switch (_rotation) {
-        case 0:  // Portrait, 0 degrees (canonical — Panel_EPaper always calls setRotation(0))
-            // X+ Y+ (0x03) — matches the init profile (0x11=0x03) and pushColors'
-            // top-to-bottom order (row0=Y0). Was SSD1680_DTM_YDEC_XINC (0x01,
-            // X+ Y-): Y decremented from 0, so row0->Y0, row1->Y(h-1),
-            // row2->Y(h-2)... rows wrapped/scrambled -> garble. Same fix as
-            // SSD1681 1.54" and SSD1683 4.2". Panel_EPaper owns coordinate
-            // rotation; the controller stays in its canonical orientation.
+        case 0:  // Portrait, 0 degrees (canonical orientation)
+            // X+ Y+ (0x03): matches the init profile and pushColors'
+            // top-to-bottom row order; the panel layer owns rotation.
             _bus->writeData(0x03);
             _width  = _init_width;
             _height = _init_height;
@@ -142,11 +217,10 @@ void Driver_SSD1680::setRotation(uint8_t m) {
             _height = _init_height;
             break;
 
-        case 1:  // Landscape 90 degrees — Panel_EPaper handles the swap;
-                 // controller stays in canonical orientation (same as rot 0).
+        case 1:  // Landscape 90 degrees — swap handled by the panel layer
         case 3:  // Landscape 270 degrees
         default:
-            _bus->writeData(0x03);  // X+ Y+ — same as rot 0; was SSD1680_DTM_YDEC_XINC (0x01, Y-)
+            _bus->writeData(0x03);  // X+ Y+ — same as rot 0
             _width  = _init_width;
             _height = _init_height;
             break;
@@ -161,7 +235,6 @@ void Driver_SSD1680::invertDisplay(bool /*invert*/) {
 
 void Driver_SSD1680::displayOn() {
     // ePaper retains the image; no explicit "display on" command.
-    // Use update() to refresh the display.
 }
 
 void Driver_SSD1680::displayOff() {
@@ -172,7 +245,9 @@ void Driver_SSD1680::displayOff() {
 
 void Driver_SSD1680::setAddrWindow(uint16_t xs, uint16_t ys,
                                     uint16_t xe, uint16_t ye) {
-    // Converted from EPD_SET_WINDOW(x1, y1, x2, y2) macro
+    if (lastOperationError() != DriverOperationError::None || !_bus) return;
+    // Cache window; re-issued before each RAM plane (pure register writes).
+    _winX0 = xs; _winY0 = ys; _winX1 = xe; _winY1 = ye;
 
     // RAM X start/end (in bytes, not pixels)
     _bus->writeCommand(SSD1680_SETX);  // 0x44
@@ -213,15 +288,28 @@ void Driver_SSD1680::writeFill(uint16_t /*color*/, size_t /*len*/) {
 // IDriver :: power management
 
 void Driver_SSD1680::sleep() {
-    // Converted from EPD_SLEEP() macro
-    _bus->writeCommand(SSD1680_SLPIN);  // 0x10
-    _bus->writeData(0x01);
+    if (_cacheUpdatePending) invalidateOldCache();
+    _partialActive = false;
+    _fastFallbackFull = false;
+    if (_lastPartialTimedOut) {
+        // A partial refresh may still be driving after a BUSY timeout:
+        // skip deep sleep once (cost: standby power until next operation).
+        _lastPartialTimedOut = false;
+    } else {
+        _bus->writeCommand(SSD1680_SLPIN);  // 0x10
+        _bus->writeData(0x01);
+    }
     delay(100);
 }
 
 void Driver_SSD1680::wake() {
-    // Converted from EPD_WAKEUP() macro (which is EPD_INIT())
-    // Re-run the full init sequence
+    // Re-run the full init sequence; reset cache session state first (the
+    // applyWaveformProfile() early return below is the normal path).
+    if (_cacheUpdatePending) invalidateOldCache();
+    _partialActive = false;
+    _lastPartialTimedOut = false;
+    _fastFallbackFull = false;
+
     reset();
     if (lastOperationError() != DriverOperationError::None) return;
     if (applyWaveformProfile(EPaperWaveformMode::Full, _busy_pin, false)) {
@@ -267,55 +355,117 @@ void Driver_SSD1680::wake() {
 }
 
 void Driver_SSD1680::wakePartial() {
-    // Converted from EPD_WAKEUP_PARTIAL() macro
     wake();
+    if (lastOperationError() != DriverOperationError::None) return;
     initPartial();
+    if (lastOperationError() != DriverOperationError::None) return;
+    // Partial is safe only after a confirmed monochrome full/fast refresh.
+    if (!ensureOldCache() || !_oldCacheValid) {
+        setOperationError(DriverOperationError::CommunicationFailed);
+        return;
+    }
+    _lastPartialTimedOut = false;
+    _partialActive = true;
+}
+
+void Driver_SSD1680::wakeFast() {
+    wake();
+    if (lastOperationError() != DriverOperationError::None) return;
+    _fastFallbackFull = !_oldCacheValid;
 }
 
 void Driver_SSD1680::wakeGray() {
-    // Converted from EPD_WAKEUP_GRAY() macro (which is EPD_WAKEUP())
     wake();
 }
 
 // ePaper-specific :: update methods
 
 void Driver_SSD1680::update() {
-    // Converted from EPD_UPDATE() macro
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0) {
+        finishRefresh(false);
+        return;
+    }
     _bus->writeCommand(SSD1680_DISPCTRL);  // 0x22
     _bus->writeData(0xF7);
     _bus->writeCommand(SSD1680_MASTER);    // 0x20
     checkBusy();
+    const bool ok = (lastOperationError() == DriverOperationError::None) &&
+                    (!_bus || _bus->lastError() == 0);
+    finishRefresh(ok);
 }
 
 void Driver_SSD1680::updateFast() {
-    // Converted from EPD_UPDATE_FAST() macro
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0) {
+        finishRefresh(false);
+        _fastFallbackFull = false;
+        return;
+    }
+    // Fast full refresh: 0x1A=0x64 + 0xD7. The first request uses 0xF7 so an
+    // unknown power-on frame becomes a trustworthy partial-refresh baseline.
+    _bus->writeCommand(0x21);             // Display update control 1
+    _bus->writeData(0x00);                // B/W RAM normal
+    _bus->writeData(0x80);                // previous-plane option
+    if (!_fastFallbackFull) {
+        _bus->writeCommand(SSD1680_LUTOPT);   // 0x1A
+        _bus->writeData(0x64);
+    }
     _bus->writeCommand(SSD1680_DISPCTRL);  // 0x22
-    _bus->writeData(0xC7);
+    _bus->writeData(_fastFallbackFull ? 0xF7 : 0xD7);
     _bus->writeCommand(SSD1680_MASTER);    // 0x20
     checkBusy();
+    const bool ok = (lastOperationError() == DriverOperationError::None) &&
+                    (!_bus || _bus->lastError() == 0);
+    finishRefresh(ok);
+    _fastFallbackFull = false;
 }
 
 void Driver_SSD1680::updateGray() {
-    // Converted from EPD_UPDATE_GRAY() macro (which is EPD_UPDATE_FAST())
-    updateFast();
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0) return;
+    // Gray trigger (0xC7) differs from the monochrome fast-full waveform.
+    _bus->writeCommand(SSD1680_DISPCTRL);
+    _bus->writeData(0xC7);
+    _bus->writeCommand(SSD1680_MASTER);
+    checkBusy();
+    if (lastOperationError() != DriverOperationError::None ||
+        _bus->lastError() != 0) invalidateOldCache();
 }
 
 void Driver_SSD1680::updatePartial() {
-    // Converted from EPD_UPDATE_PARTIAL() macro
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0 || !_partialActive ||
+        !_cacheUpdatePending) {
+        if (_cacheUpdatePending) invalidateOldCache();
+        _partialActive = false;
+        return;
+    }
     _bus->writeCommand(SSD1680_DISPCTRL);  // 0x22
-    _bus->writeData(0xFF);
+    _bus->writeData(0xFC);
     _bus->writeCommand(SSD1680_MASTER);    // 0x20
-    // Keep the public operation synchronous so Panel can report completion
-    // and BUSY timeout consistently with full/fast refreshes.
+    // Synchronous BUSY wait keeps timeout reporting consistent.
     checkBusy();
+    // Commit the staged cache update only after this wait succeeds.
+    const bool ok = (lastOperationError() == DriverOperationError::None) &&
+                    (!_bus || _bus->lastError() == 0);
+    if (!ok && lastOperationError() == DriverOperationError::BusyTimeout) {
+        // Glass state unknown; sleep() skips deep sleep once.
+        _lastPartialTimedOut = true;
+    }
+    finishRefresh(ok);
+    _partialActive = false;
 }
 
 // ePaper-specific :: init sub-modes
 
 void Driver_SSD1680::initPartial() {
+    // RAM-plane selection for differential updates; not in the shared profile.
+    _bus->writeCommand(0x21);
+    _bus->writeData(0x00);
+    _bus->writeData(0x80);
     if (applyWaveformProfile(EPaperWaveformMode::Partial, _busy_pin, false)) return;
     if (lastOperationError() != DriverOperationError::None) return;
-    // Converted from EPD_INIT_PARTIAL() macro
     _bus->writeCommand(SSD1680_TEMP);   // 0x18
     _bus->writeData(0x80);
     _bus->writeCommand(SSD1680_PTLIN);  // 0x3C
@@ -325,7 +475,6 @@ void Driver_SSD1680::initPartial() {
 void Driver_SSD1680::initGray() {
     if (applyWaveformProfile(EPaperWaveformMode::Gray, _busy_pin, false)) return;
     if (lastOperationError() != DriverOperationError::None) return;
-    // Converted from EPD_INIT_GRAY() macro
     _bus->writeCommand(SSD1680_TEMP);       // 0x18
     _bus->writeData(0x80);
 
@@ -346,9 +495,60 @@ void Driver_SSD1680::initGray() {
 
 // ePaper-specific :: push color data
 
+void Driver_SSD1680::pushNewColors(const uint8_t* data, size_t len) {
+    if (!_bus || !data ||
+        lastOperationError() != DriverOperationError::None) return;
+
+    size_t rowBytes = 0, rows = 0, total = 0;
+    if (_partialActive) {
+        if (!_oldCache || !_oldCacheValid ||
+            !windowGeometry(&rowBytes, &rows, &total) || len != total) {
+            setOperationError(DriverOperationError::CommunicationFailed);
+            return;
+        }
+        // Differential waveform needs old (0x26) vs new (0x24) RAM: write the
+        // cached old window first, re-issuing the window before each plane.
+        setAddrWindow(_winX0, _winY0, _winX1, _winY1);
+        pushOldWindow(rowBytes, rows);              // 0x26, strictly first
+        setAddrWindow(_winX0, _winY0, _winX1, _winY1);
+        _bus->writeCommand(SSD1680_RAMBW);          // 0x24
+        _bus->writeData(data, len);
+        // Cache updated in place (no second allocation); stays invalid until
+        // BUSY confirms the refresh.
+        cacheWindow(data, rowBytes, rows);
+        return;
+    }
+
+    if (len == frameBytes()) {
+        // The cache is required only for later differential partial updates.
+        // A cache-allocation failure must not prevent this full-frame transfer
+        // from reaching the panel; without a cache, later partial updates stay
+        // rejected until another full/fast refresh can establish a baseline.
+        _bus->writeCommand(SSD1680_RAMBW);  // 0x24
+        _bus->writeData(data, len);
+        _winX0 = 0; _winY0 = 0;
+        _winX1 = _init_width - 1; _winY1 = _init_height - 1;
+        if (ensureOldCache()) {
+            cacheWindow(data, cacheStride(), _init_height);
+        }
+        return;
+    }
+
+    // Non-monochrome compatibility path; never use it as a 1bpp baseline.
+    _bus->writeCommand(SSD1680_RAMBW);
+    _bus->writeData(data, len);
+}
+
+void Driver_SSD1680::pushGrayColors(const uint8_t* data, size_t len) {
+    (void)len;
+    // Gray repaints both planes as 2-bit data the 1bpp cache cannot hold:
+    // invalidate here (not in wakeGray(), which may never reach a push).
+    invalidateOldCache();
+    pushNewGrayColors(_init_width, _init_height, data);
+}
+
 void Driver_SSD1680::pushNewColors(uint16_t w, uint16_t h,
                                     const uint8_t* colors) {
-    // Converted from EPD_PUSH_NEW_COLORS(w, h, colors) macro
     _bus->writeCommand(SSD1680_RAMBW);  // 0x24
     size_t n = (size_t)w * h / 8;
     _bus->writeData(colors, n);
@@ -356,7 +556,6 @@ void Driver_SSD1680::pushNewColors(uint16_t w, uint16_t h,
 
 void Driver_SSD1680::pushOldColors(uint16_t w, uint16_t h,
                                     const uint8_t* colors) {
-    // Converted from EPD_PUSH_OLD_COLORS(w, h, colors) macro
     _bus->writeCommand(SSD1680_RAMRED);  // 0x26
     size_t n = (size_t)w * h / 8;
     _bus->writeData(colors, n);
@@ -364,10 +563,8 @@ void Driver_SSD1680::pushOldColors(uint16_t w, uint16_t h,
 
 void Driver_SSD1680::pushNewColorsFlip(uint16_t w, uint16_t h,
                                         const uint8_t* colors) {
-    // Converted from EPD_PUSH_NEW_COLORS_FLIP(w, h, colors) macro
-    // For each row, reverses the byte order and flips the bits within
-    // each byte. This corrects for panels where the column wiring is
-    // reversed relative to the logical pixel order.
+    // Per row: reverse byte order and flip bits within each byte, for
+    // panels whose column wiring is reversed.
 
     _bus->writeCommand(SSD1680_RAMBW);  // 0x24
 
@@ -378,12 +575,8 @@ void Driver_SSD1680::pushNewColorsFlip(uint16_t w, uint16_t h,
         for (uint16_t col = 0; col < bytes_per_row; col++) {
             uint8_t b = colors[start + (bytes_per_row - 1 - col)];
 
-            // Reverse the bits within the byte:
-            // 1. Swap nibbles
             b = ((b & 0xF0) >> 4) | ((b & 0x0F) << 4);
-            // 2. Swap adjacent pairs of bits
             b = ((b & 0xCC) >> 2) | ((b & 0x33) << 2);
-            // 3. Swap every other bit
             b = ((b & 0xAA) >> 1) | ((b & 0x55) << 1);
 
             _bus->writeData(b);
@@ -393,9 +586,7 @@ void Driver_SSD1680::pushNewColorsFlip(uint16_t w, uint16_t h,
 
 void Driver_SSD1680::pushOldColorsFlip(uint16_t w, uint16_t h,
                                         const uint8_t* colors) {
-    // Converted from EPD_PUSH_OLD_COLORS_FLIP(w, h, colors) macro
-    // Same row-reverse + bit-reverse logic as pushNewColorsFlip,
-    // but writes to the Red RAM (0x26) instead.
+    // Same flip logic as pushNewColorsFlip, writing to Red RAM (0x26).
 
     _bus->writeCommand(SSD1680_RAMRED);  // 0x26
 
@@ -419,18 +610,8 @@ void Driver_SSD1680::pushOldColorsFlip(uint16_t w, uint16_t h,
 
 void Driver_SSD1680::pushNewGrayColors(uint16_t w, uint16_t h,
                                         const uint8_t* colors) {
-    // Converted from EPD_PUSH_NEW_GRAY_COLORS(w, h, colors) macro
-    // The SSD1680 achieves 4-level grayscale by using both the B/W RAM (0x24)
-    // and Red RAM (0x26) planes. Each pixel is 2 bits in the source buffer:
-    //   00 = white  (B/W=0, Red=0)
-    //   01 = gray1  (B/W=1, Red=0)
-    //   10 = gray2  (B/W=0, Red=1)
-    //   11 = black  (B/W=1, Red=1)
-    // The input colors[] buffer packs 2 pixels per byte (2 bits each,
-    // stored in bits [5:4] and [1:0]). Four input bytes = 8 pixels = 1 output
-    // byte per plane. Total input size = 4 * (w * h / 8) = w * h / 2 bytes.
-
-    // Initialize for grayscale operation
+    // 4-level gray via both planes; each pixel is 2 bits (00=white, 01=gray1,
+    // 10=gray2, 11=black), packed 2 pixels/byte; total = w*h/2 bytes.
     initGray();
 
     uint32_t total_pixels = (uint32_t)w * h;
@@ -442,13 +623,11 @@ void Driver_SSD1680::pushNewGrayColors(uint16_t w, uint16_t h,
     _bus->writeCommand(SSD1680_RAMBW);  // 0x24
 
     for (uint32_t i = 0; i < total_pixels_div8; i++) {
-        // Read 4 input bytes = 8 pixels
         uint8_t c0 = colors[i * 4 + 0];
         uint8_t c1 = colors[i * 4 + 1];
         uint8_t c2 = colors[i * 4 + 2];
         uint8_t c3 = colors[i * 4 + 3];
 
-        // Extract 8 pixels (2 bits each from bits [5:4] and [1:0])
         uint8_t p0 = (c0 >> 4) & 0x03;
         uint8_t p1 = c0 & 0x03;
         uint8_t p2 = (c1 >> 4) & 0x03;
@@ -458,7 +637,6 @@ void Driver_SSD1680::pushNewGrayColors(uint16_t w, uint16_t h,
         uint8_t p6 = (c3 >> 4) & 0x03;
         uint8_t p7 = c3 & 0x03;
 
-        // Pack into 2-bit-per-pixel format (4 pixels per byte)
         uint8_t packed0 = (p0 << 6) | (p1 << 4) | (p2 << 2) | p3;
         uint8_t packed1 = (p4 << 6) | (p5 << 4) | (p6 << 2) | p7;
 
@@ -536,7 +714,6 @@ void Driver_SSD1680::pushNewGrayColors(uint16_t w, uint16_t h,
 
 void Driver_SSD1680::pushNewGrayColorsFlip(uint16_t w, uint16_t h,
                                             const uint8_t* colors) {
-    // Converted from EPD_PUSH_NEW_GRAY_COLORS_FLIP(w, h, colors) macro
-    // The original macro simply delegates to the non-flip version.
+    // Delegates to the non-flip version.
     pushNewGrayColors(w, h, colors);
 }

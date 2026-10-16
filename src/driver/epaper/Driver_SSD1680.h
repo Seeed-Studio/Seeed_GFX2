@@ -2,13 +2,7 @@
  * @file   Driver_SSD1680.h
  * @brief  SSD1680 ePaper display driver for Seeed_GFX v2.0
  *
- * Complete driver for the SSD1680 ePaper controller, commonly used on
- * Seeed XIAO 2.9" ePaper displays (128x296).
- *
  * Supports: full refresh, fast refresh, partial refresh, and 4-level grayscale.
- *
- * Adapted from Seeed_GFX-master:
- *   TFT_Drivers/SSD1680_Defines.h, SSD1680_Init.h, SSD1680_Rotation.h
  */
 
 #ifndef SEEED_GFX_DRIVER_SSD1680_H
@@ -47,6 +41,9 @@ public:
      */
     Driver_SSD1680(uint16_t w = 128, uint16_t h = 296);
 
+    /// Frees the driver-managed partial old-plane cache.
+    ~Driver_SSD1680() override;
+
     // ---- IDriver interface ------------------------------------------------
     const char* name() const override { return "SSD1680"; }
     uint16_t width() const override { return _width; }
@@ -77,7 +74,6 @@ public:
     void setEnablePin(int8_t pin) { _enable_pin = pin; }
 
     // ---- ePaper-specific public API ---------------------------------------
-    // (Original macro equivalents)
 
     /// Full display update (slow, lowest ghosting)
     bool supportsPartialRefresh() const override { return true; }
@@ -87,6 +83,10 @@ public:
 
     /// Fast display update (uses LUT, more ghosting)
     void updateFast() override;
+
+    /// Prepare a fast full refresh. The first fast request falls back to a
+    /// normal full waveform so the next differential refresh has a baseline.
+    void wakeFast() override;
 
     /// Partial update (only refreshes the current window)
     void updatePartial() override;
@@ -108,10 +108,10 @@ public:
 
     /// Push B/W pixel data to new-color RAM (0x24)
     void pushNewColors(uint16_t w, uint16_t h, const uint8_t* colors);
-    void pushNewColors(const uint8_t* colors, size_t len) override {
-        if (!_bus || !colors) return;
-        _bus->writeCommand(SSD1680_RAMBW); _bus->writeData(colors, len);
-    }
+
+    /// Push B/W pixel data to new-color RAM (0x24). During a partial session
+    /// the cached old window is written to 0x26 first.
+    void pushNewColors(const uint8_t* data, size_t len) override;
 
     /// Push B/W pixel data to old-color RAM (0x26)
     void pushOldColors(uint16_t w, uint16_t h, const uint8_t* colors);
@@ -127,16 +127,14 @@ public:
     void pushOldColorsFlip(uint16_t w, uint16_t h, const uint8_t* colors);
 
     /// Push 4-level grayscale data to both RAM planes (0x24 + 0x26)
-    /// @param colors  Input buffer: 4 bytes per 8 pixels (2-bit gray per pixel)
-    ///                 Total size = 4 * (w * h / 8) = w * h / 2 bytes
+    /// @param colors  2-bit gray per pixel; total size = w * h / 2 bytes
     void pushNewGrayColors(uint16_t w, uint16_t h, const uint8_t* colors);
-    void pushGrayColors(const uint8_t* colors, size_t len) override {
-        (void)len;
-        pushNewGrayColors(_init_width, _init_height, colors);
-    }
 
-    /// Push 4-level grayscale data (same as pushNewGrayColors; flip not
-    /// implemented for gray mode)
+    /// Push 4-level grayscale data. Invalidates the 1bpp old-plane cache;
+    /// a successful monochrome full refresh is required before partial mode.
+    void pushGrayColors(const uint8_t* data, size_t len) override;
+
+    /// Push 4-level grayscale data (same as pushNewGrayColors; no flip)
     void pushNewGrayColorsFlip(uint16_t w, uint16_t h, const uint8_t* colors);
 
 private:
@@ -145,6 +143,30 @@ private:
 
     /// Hardware + software reset sequence
     void reset();
+
+    // ---- Driver-managed partial old-plane cache ----------------------------
+    // Controller-space 1bpp, 1 = white, stride = (_init_width + 7) / 8;
+    // updated in place (no staging allocation), invalidated on BUSY timeout.
+
+    size_t cacheStride() const { return ((size_t)_init_width + 7U) / 8U; }
+    size_t frameBytes() const { return cacheStride() * _init_height; }
+
+    bool ensureOldCache();       ///< lazy allocation; false on OOM
+    void invalidateOldCache();   ///< free cache and mark the baseline unknown
+    bool windowGeometry(size_t* rowBytes, size_t* rows, size_t* total) const;
+    void pushOldWindow(size_t rowBytes, size_t rows);  ///< 0x26 from cache
+    void cacheWindow(const uint8_t* data, size_t rowBytes, size_t rows);
+    void finishRefresh(bool success);
+
+    uint8_t* _oldCache = nullptr;  ///< full-frame 1bpp snapshot
+
+    uint16_t _winX0 = 0, _winY0 = 0, _winX1 = 0, _winY1 = 0;  ///< setAddrWindow cache
+
+    bool _partialActive       = false;  ///< wakePartial() .. updatePartial()
+    bool _lastPartialTimedOut = false;  ///< one-shot sleep() guard
+    bool _oldCacheValid       = false;  ///< cache exactly matches the glass
+    bool _cacheUpdatePending  = false;  ///< cache changed; refresh not confirmed
+    bool _fastFallbackFull    = false;  ///< first fast request uses 0xF7
 
     uint16_t _init_width  = 128;
     uint16_t _init_height = 296;

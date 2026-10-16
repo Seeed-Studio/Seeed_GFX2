@@ -1,16 +1,21 @@
 /**
  * @file   Driver_SSD1681.cpp
  * @brief  SSD1681 ePaper display driver implementation
- *
- * Ported from TFT_Drivers/SSD1681_Defines.h, SSD1681_Init.h, SSD1681_Rotation.h
  */
 
 #include "Driver_SSD1681.h"
 #include "../../core/Gpio.h"
+#include <stdlib.h>
+#include <string.h>
 
 Driver_SSD1681::Driver_SSD1681(uint16_t w, uint16_t h, int8_t busyPin)
     : _init_width(w), _init_height(h), _busyPin(busyPin) {
     _width = w; _height = h;
+}
+
+Driver_SSD1681::~Driver_SSD1681() {
+    free(_oldCache);
+    _oldCache = nullptr;
 }
 
 void Driver_SSD1681::busyWait() {
@@ -20,6 +25,12 @@ void Driver_SSD1681::busyWait() {
 
 bool Driver_SSD1681::init(IBus& bus) {
     _bus = &bus;
+    // Partial-session reset point (all wake paths call init()); runs before the
+    // waveform-profile early return. _oldCache is kept: truer than a white baseline.
+    if (_cacheUpdatePending) invalidateOldCache();
+    _partialActive = false;
+    _lastPartialTimedOut = false;
+    _fastFallbackFull = false;
     if (_busyPin >= 0) pinMode(_busyPin, INPUT);
     hardwareReset(10, 10);
     // EPD_INIT sequence
@@ -64,10 +75,8 @@ void Driver_SSD1681::setRotation(uint8_t m) {
     _bus->writeCommand(0x11);
     switch (_rotation) {
         case 0:
-            // X+ Y+ — matches the init profile (0x11=0x03) and pushColors'
-            // top-to-bottom order (row0=Y0). Was 0x01 (X+ Y-): Y decremented from
-            // 0, so row0->Y0, row1->Y(h-1), row2->Y(h-2)... rows wrapped/scrambled
-            // -> garble. Same fix as SSD1683 4.2".
+            // X+ Y+ — matches the init profile and pushColors' top-to-bottom
+            // order (row0=Y0).
             _bus->writeData(0x03);
             _width = _init_width; _height = _init_height;
             break;
@@ -89,6 +98,9 @@ void Driver_SSD1681::displayOn()  { update(); }
 void Driver_SSD1681::displayOff() {}
 
 void Driver_SSD1681::setAddrWindow(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    if (lastOperationError() != DriverOperationError::None || !_bus) return;
+    // Remember the window for the partial-refresh old-plane bookkeeping.
+    _winX0 = x1; _winY0 = y1; _winX1 = x2; _winY1 = y2;
     _bus->writeCommand(0x44);
     _bus->writeData(x1 >> 3);
     _bus->writeData(x2 >> 3);
@@ -109,8 +121,17 @@ void Driver_SSD1681::writePixels(const uint16_t*, size_t) {}
 void Driver_SSD1681::writeFill(uint16_t, size_t) {}
 
 void Driver_SSD1681::sleep() {
-    _bus->writeCommand(0x10);
-    _bus->writeData(0x01);
+    if (_cacheUpdatePending) invalidateOldCache();
+    _partialActive = false;
+    _fastFallbackFull = false;
+    // One-shot: after a partial-refresh BUSY timeout, skip DSLP once (the
+    // controller may still be driving). Cost: standby power until next op.
+    if (_lastPartialTimedOut) {
+        _lastPartialTimedOut = false;
+    } else {
+        _bus->writeCommand(0x10);
+        _bus->writeData(0x01);
+    }
     delay(100);
 }
 
@@ -119,28 +140,74 @@ void Driver_SSD1681::wake() {
 }
 
 void Driver_SSD1681::update() {
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0) {
+        finishRefresh(false);
+        return;
+    }
     _bus->writeCommand(0x22);
     _bus->writeData(0xF7);
     _bus->writeCommand(0x20);
     busyWait();
+    const bool ok = lastOperationError() == DriverOperationError::None &&
+                    (!_bus || _bus->lastError() == 0);
+    finishRefresh(ok);
 }
 
 void Driver_SSD1681::updateFast() {
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0) {
+        finishRefresh(false);
+        _fastFallbackFull = false;
+        return;
+    }
+    // The OTP fast waveform needs a fixed temperature index; without it the
+    // panel can report completion without changing the glass.
+    if (!_fastFallbackFull) {
+        _bus->writeCommand(0x1A);
+        _bus->writeData(0x64);
+    }
+    _bus->writeCommand(0x22);
+    _bus->writeData(_fastFallbackFull ? 0xF7 : 0xD7);
+    _bus->writeCommand(0x20);
+    busyWait();
+    const bool ok = lastOperationError() == DriverOperationError::None &&
+                    (!_bus || _bus->lastError() == 0);
+    finishRefresh(ok);
+    _fastFallbackFull = false;
+}
+
+void Driver_SSD1681::updateGray() {
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0) return;
     _bus->writeCommand(0x22);
     _bus->writeData(0xC7);
     _bus->writeCommand(0x20);
     busyWait();
-}
-
-void Driver_SSD1681::updateGray() {
-    updateFast();
+    if (lastOperationError() != DriverOperationError::None ||
+        _bus->lastError() != 0) invalidateOldCache();
 }
 
 void Driver_SSD1681::updatePartial() {
+    if (lastOperationError() != DriverOperationError::None || !_bus ||
+        _bus->lastError() != 0 || !_partialActive ||
+        !_cacheUpdatePending) {
+        if (_cacheUpdatePending) invalidateOldCache();
+        _partialActive = false;
+        return;
+    }
     _bus->writeCommand(0x22);
-    _bus->writeData(0xFF);
+    _bus->writeData(0xFC);
     _bus->writeCommand(0x20);
     busyWait();
+    // Sticky errors are cleared at each operation start, so any error seen
+    // here belongs to the current partial session.
+    const bool ok = lastOperationError() == DriverOperationError::None &&
+                    (!_bus || _bus->lastError() == 0);
+    if (!ok && lastOperationError() == DriverOperationError::BusyTimeout)
+        _lastPartialTimedOut = true;  // sleep() will skip DSLP once
+    finishRefresh(ok);
+    _partialActive = false;
 }
 
 void Driver_SSD1681::initGray() {
@@ -174,7 +241,148 @@ void Driver_SSD1681::wakeGray() { wake(); }
 
 void Driver_SSD1681::wakePartial() {
     init(*_bus);
+    if (lastOperationError() != DriverOperationError::None) return;
     initPartial();
+    if (lastOperationError() != DriverOperationError::None) return;
+    if (!ensureOldCache() || !_oldCacheValid) {
+        setOperationError(DriverOperationError::CommunicationFailed);
+        return;
+    }
+    _lastPartialTimedOut = false;
+    _partialActive = true;
+}
+
+void Driver_SSD1681::wakeFast() {
+    wake();
+    if (lastOperationError() != DriverOperationError::None) return;
+    _fastFallbackFull = !_oldCacheValid;
+}
+
+void Driver_SSD1681::pushNewColors(const uint8_t* data, size_t len) {
+    if (!_bus || !data ||
+        lastOperationError() != DriverOperationError::None) return;
+
+    // Partial branch: push the cached old plane (0x26) before the new plane
+    // (0x24), else the differential waveform ghosts against a stale reference.
+    size_t rowBytes = 0, rows = 0, total = 0;
+    if (_partialActive) {
+        if (!_oldCache || !_oldCacheValid ||
+            !windowGeometry(&rowBytes, &rows, &total) || len != total) {
+            setOperationError(DriverOperationError::CommunicationFailed);
+            return;
+        }
+        // Re-issue the window before each plane (pure register writes); never
+        // assume the address counter rewinds across planes.
+        setAddrWindow(_winX0, _winY0, _winX1, _winY1);
+        pushOldWindow(rowBytes, rows);   // 0x26, strictly before the new plane
+        setAddrWindow(_winX0, _winY0, _winX1, _winY1);
+        _bus->writeCommand(0x24);
+        _bus->writeData(data, len);
+        cacheWindow(data, rowBytes, rows);
+        return;
+    }
+
+    // Only exact full-frame 1bpp data updates the cache; other sizes (e.g.
+    // 4bpp/colorful) go straight to 0x24 so they can't poison it.
+    if (len == frameBytes()) {
+        // Cache allocation is best-effort: the full refresh remains usable
+        // under memory pressure, while partial refresh stays unavailable until
+        // a later full/fast refresh successfully establishes its baseline.
+        _bus->writeCommand(0x24);
+        _bus->writeData(data, len);
+        _winX0 = 0; _winY0 = 0;
+        _winX1 = _init_width - 1; _winY1 = _init_height - 1;
+        if (ensureOldCache()) {
+            cacheWindow(data, cacheStride(), _init_height);
+        }
+        return;
+    }
+
+    _bus->writeCommand(0x24);
+    _bus->writeData(data, len);
+}
+
+size_t Driver_SSD1681::cacheStride() const {
+    return (static_cast<size_t>(_init_width) + 7U) / 8U;
+}
+
+size_t Driver_SSD1681::frameBytes() const {
+    return cacheStride() * _init_height;
+}
+
+bool Driver_SSD1681::ensureOldCache() {
+    if (_oldCache) return true;
+    _oldCache = static_cast<uint8_t*>(malloc(frameBytes()));
+    if (_oldCache) memset(_oldCache, 0xFF, frameBytes());
+    _oldCacheValid = false;
+    return _oldCache != nullptr;
+}
+
+void Driver_SSD1681::invalidateOldCache() {
+    free(_oldCache);
+    _oldCache = nullptr;
+    _oldCacheValid = false;
+    _cacheUpdatePending = false;
+    _partialActive = false;
+}
+
+bool Driver_SSD1681::windowGeometry(size_t* rowBytes, size_t* rows,
+                                    size_t* total) const {
+    // Accept only in-bounds, 8px-aligned windows; rejecting anything else
+    // prevents out-of-bounds writes into _oldCache.
+    if (_winX0 > _winX1 || _winY0 > _winY1) return false;
+    if (_winX1 >= _init_width || _winY1 >= _init_height) return false;
+    if ((_winX0 & 7U) != 0) return false;
+    const size_t w = static_cast<size_t>(_winX1) - _winX0 + 1U;
+    if ((w & 7U) != 0) return false;
+    const size_t rb = w >> 3;
+    const size_t stride = cacheStride();
+    if (rb < 1U || rb > stride) return false;
+    if (static_cast<size_t>(_winX0 >> 3) + rb > stride) return false;
+    const size_t r = static_cast<size_t>(_winY1) - _winY0 + 1U;
+    if (rowBytes) *rowBytes = rb;
+    if (rows) *rows = r;
+    if (total) *total = rb * r;
+    return true;
+}
+
+void Driver_SSD1681::pushOldWindow(size_t rowBytes, size_t rows) {
+    if (!_bus || !_oldCache) return;
+    const size_t stride = cacheStride();
+    _bus->writeCommand(0x26);
+    for (size_t r = 0; r < rows; ++r) {
+        _bus->writeData(_oldCache +
+                            (static_cast<size_t>(_winY0) + r) * stride +
+                            (static_cast<size_t>(_winX0) >> 3),
+                        rowBytes);
+    }
+}
+
+void Driver_SSD1681::cacheWindow(const uint8_t* data, size_t rowBytes,
+                                 size_t rows) {
+    if (!data || !_oldCache) return;
+    const size_t stride = cacheStride();
+    for (size_t r = 0; r < rows; ++r) {
+        memcpy(_oldCache +
+                   (static_cast<size_t>(_winY0) + r) * stride +
+                   (static_cast<size_t>(_winX0) >> 3),
+               data + r * rowBytes, rowBytes);
+    }
+    _oldCacheValid = false;
+    _cacheUpdatePending = true;
+}
+
+void Driver_SSD1681::finishRefresh(bool success) {
+    // success = both gates clean: lastOperationError()==None and
+    // _bus->lastError()==0. Only then is the staged cache patch committed.
+    if (!success) {
+        invalidateOldCache();
+        return;
+    }
+    if (_cacheUpdatePending) {
+        _oldCacheValid = true;
+        _cacheUpdatePending = false;
+    }
 }
 
 void Driver_SSD1681::pushColors(const uint8_t* data, uint16_t w, uint16_t h) {
