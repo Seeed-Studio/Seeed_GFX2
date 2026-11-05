@@ -67,6 +67,11 @@ getTouchPoints	KEYWORD2
 getTouchGesture	KEYWORD2
 touchPointCapacity	KEYWORD2
 TouchPoint	KEYWORD1
+Touch_CST9217	KEYWORD1
+chipType	KEYWORD2
+projectId	KEYWORD2
+resolutionX	KEYWORD2
+resolutionY	KEYWORD2
 update	KEYWORD2
 updatePartial	KEYWORD2
 capabilities	KEYWORD2
