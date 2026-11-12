@@ -1094,13 +1094,25 @@ int16_t Seeed_GFX::textWidth(const char *string, uint8_t font) {
 
     if (gfxFont && font == 1) {
         // GFX font
-        while (*string) {
-            uint16_t uniCode = *(string++);
-            if ((uniCode >= pgm_read_word(&gfxFont->first)) && (uniCode <= pgm_read_word(&gfxFont->last))) {
-                uniCode -= pgm_read_word(&gfxFont->first);
-                GFXglyph *glyph = &(static_cast<GFXglyph*>(SEEED_PGM_PTR(&gfxFont->glyph))[uniCode]);
-                if (*string || isDigits) str_width += pgm_read_byte(&glyph->xAdvance);
-                else str_width += ((int8_t)pgm_read_byte(&glyph->xOffset) + pgm_read_byte(&glyph->width));
+        // Decode UTF-8 exactly as drawString() does. Measuring raw bytes makes
+        // multi-byte characters contribute one width per encoded byte, so any
+        // datum based on the measured width is misaligned.
+        const uint16_t len = static_cast<uint16_t>(strlen(string));
+        const uint16_t first = pgm_read_word(&gfxFont->first);
+        const uint16_t last = pgm_read_word(&gfxFont->last);
+        uint16_t index = 0;
+        while (index < len) {
+            const uint16_t uniCode = decodeUTF8(
+                reinterpret_cast<uint8_t*>(const_cast<char*>(string)),
+                &index, len - index);
+            if (uniCode >= first && uniCode <= last) {
+                GFXglyph *glyph = &(static_cast<GFXglyph*>(SEEED_PGM_PTR(&gfxFont->glyph))[uniCode - first]);
+                if (index < len || isDigits) {
+                    str_width += pgm_read_byte(&glyph->xAdvance);
+                } else {
+                    str_width += (static_cast<int8_t>(pgm_read_byte(&glyph->xOffset)) +
+                                  pgm_read_byte(&glyph->width));
+                }
             }
         }
     } else {
