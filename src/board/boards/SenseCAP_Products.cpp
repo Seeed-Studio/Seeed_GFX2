@@ -93,7 +93,9 @@ bool Board_SenseCAP_Watcher::begin() {
 IBus* Board_SenseCAP_Watcher::createBus() {
     const Esp32QspiLcdConfig config = {
         7, 9, 1, 14, 13, 45, 40000000,
-        static_cast<size_t>(412U * 412U * 2U)
+        static_cast<size_t>(412U * 412U * 2U),
+        3,   // SPI mode 3 (SPD2010)
+        2    // SPI3_HOST (Watcher quad-SPI LCD bus)
     };
     return new (std::nothrow) Bus_ESP32QSPI(config);
 }
