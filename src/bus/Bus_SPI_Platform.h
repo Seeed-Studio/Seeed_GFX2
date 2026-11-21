@@ -79,11 +79,23 @@
   // board definitions are GPIO numbers (e.g., D7=GPIO44 on XIAO ESP32S3 Plus),
   // NOT Arduino pin numbers. digitalWrite() would incorrectly route through
   // the Arduino pin mapping.
+  // The GPIO0..31 set/clear registers are plain uint32_t on classic
+  // ESP32/S2/S3/C3, but became register unions (accessed via .val) on the
+  // RISC-V ESP32-C5/C6.  The GPIO32+ registers were always unions, hence the
+  // unconditional .val in the pin>=32 branch.
+  #if defined(CONFIG_IDF_TARGET_ESP32C5) || defined(CONFIG_IDF_TARGET_ESP32C6)
+    #define SEEED_GPIO_OUT_W1TC(mask) (GPIO.out_w1tc.val = (mask))
+    #define SEEED_GPIO_OUT_W1TS(mask) (GPIO.out_w1ts.val = (mask))
+  #else
+    #define SEEED_GPIO_OUT_W1TC(mask) (GPIO.out_w1tc = (mask))
+    #define SEEED_GPIO_OUT_W1TS(mask) (GPIO.out_w1ts = (mask))
+  #endif
+
   inline void seeed_gpio_lo(uint8_t pin) {
     if (pin >= 32) {
       GPIO.out1_w1tc.val = (1 << (pin - 32));
     } else {
-      GPIO.out_w1tc = (1 << pin);
+      SEEED_GPIO_OUT_W1TC(1 << pin);
     }
   }
 
@@ -91,7 +103,7 @@
     if (pin >= 32) {
       GPIO.out1_w1ts.val = (1 << (pin - 32));
     } else {
-      GPIO.out_w1ts = (1 << pin);
+      SEEED_GPIO_OUT_W1TS(1 << pin);
     }
   }
 

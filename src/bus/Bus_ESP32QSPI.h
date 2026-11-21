@@ -26,6 +26,8 @@ struct Esp32QspiLcdConfig {
     int8_t cs;
     uint32_t frequency;
     size_t maxTransferBytes;
+    uint8_t spiMode;   // SPI mode for esp_lcd_panel_io_spi_config_t (CO5300: 0, SPD2010: 3)
+    uint8_t host;      // ESP32-S3 SPI host: 1 = SPI2_HOST, 2 = SPI3_HOST
 };
 
 /**

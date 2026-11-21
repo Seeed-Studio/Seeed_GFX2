@@ -9,7 +9,7 @@ Bus_ESP32QSPI::Bus_ESP32QSPI(const Esp32QspiLcdConfig& config)
     : _config(config), _lastError(0), _pendingCommand(0), _begun(false),
       _ownsBus(false)
 #if SEEED_GFX_HAS_ESP32S3_LCD
-    , _io(nullptr), _host(SPI3_HOST), _transferReady(nullptr)
+    , _io(nullptr), _host(static_cast<spi_host_device_t>(config.host)), _transferReady(nullptr)
 #endif
 {}
 
@@ -51,7 +51,7 @@ bool Bus_ESP32QSPI::begin() {
     esp_lcd_panel_io_spi_config_t ioConfig = {};
     ioConfig.cs_gpio_num = _config.cs;
     ioConfig.dc_gpio_num = -1;
-    ioConfig.spi_mode = 3;
+    ioConfig.spi_mode = _config.spiMode;
     ioConfig.pclk_hz = static_cast<int>(_config.frequency);
     ioConfig.trans_queue_depth = 10;
     ioConfig.on_color_trans_done = &Bus_ESP32QSPI::onColorTransferDone;
