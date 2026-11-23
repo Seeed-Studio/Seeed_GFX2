@@ -15,6 +15,7 @@
  *   4. Seeed ePaper 扩展板系列 (BWRY 四色)
  *   5. Wio Terminal 系列
  *   6. reTerminal 系列
+ *   7. XIAO Console 系列 (AMOLED / CAN)
  *
  * 产品页面: https://www.seeedstudio.com
  * Wiki:      https://wiki.seeedstudio.com
@@ -40,6 +41,7 @@ class Driver_GC9A01;
 class Driver_ILI9488;
 class Driver_ST7735;
 class Driver_SSD1351;
+class Driver_CO5300;
 
 // ePaper driver forward declarations
 class Driver_UC8179;
@@ -520,6 +522,68 @@ struct Config_reTerminal_Sticky_SSD2677 {
     static constexpr uint16_t height     = 480;
     static constexpr uint8_t  colorDepth = 1;
     static constexpr bool     mirror     = true;
+};
+
+// 第七部分: XIAO Console 系列
+// 载板: Board_XIAO_AMOLED_Seeed (CO5300 QSPI AMOLED) /
+//       Board_XIAO_Console_CAN (ST7789 SPI TFT)
+
+// --- XIAO Console AMOLED 2.16" (CO5300, 480x480 QSPI) ---
+// CO5300 (Espressif esp_lcd_co5300 兼容, QSPI 接口), 2.16", 480x480,
+// 16-bit RGB565. 板卡: Board_XIAO_AMOLED_Seeed.
+struct Config_XIAO_AMOLED {
+    using Driver = Driver_CO5300;
+    using Panel  = Panel_TFT;
+    static constexpr uint16_t width      = 480;
+    static constexpr uint16_t height     = 480;
+    static constexpr uint8_t  colorDepth = 16;
+};
+
+// --- XIAO Console AMOLED 2.05" (CO5300, 368x448 圆形) ---
+// H0205S003AMT003A round AMOLED on the same XIAO carrier.  Driver_CO5300
+// derives the per-glass profile from these dimensions: factory MADCTL 0x00,
+// source GRAM gap +16 (CASET 16..383) and the extended source/gate-map init.
+struct Config_XIAO_AMOLED_205 {
+    using Driver = Driver_CO5300;
+    using Panel  = Panel_TFT;
+    static constexpr uint16_t width      = 368;
+    static constexpr uint16_t height     = 448;
+    static constexpr uint8_t  colorDepth = 16;
+};
+
+// --- XIAO Console AMOLED 1.75" (CO5300, 466x466 圆形) ---
+// H0175Y003AMT003V1 round AMOLED on the same XIAO carrier.  Same QSPI interface
+// and power rails (VBAT/VCI/IOVCC) as the 2.16"; Driver_CO5300 derives factory
+// MADCTL 0x00 and source GRAM gap +6 (CASET 6..471) from these dimensions —
+// the window the vendor 175_qspi demo and the Arduino xiao_175.ino reference
+// both use.  Touch is on the carrier (CST9217 / Seeed), independent of the
+// panel's own TPIC (CST820B on this 1.75"), so Touch has no size-dependent
+// config here.
+struct Config_XIAO_AMOLED_175 {
+    using Driver = Driver_CO5300;
+    using Panel  = Panel_TFT;
+    static constexpr uint16_t width      = 466;
+    static constexpr uint16_t height     = 466;
+    static constexpr uint8_t  colorDepth = 16;
+};
+
+// --- XIAO Console CAN (ST7789V, 240x320 SPI) ---
+// ST7789V 4-wire SPI TFT on the XIAO ESP32-C5 "console for CAN" carrier.  Same
+// controller as the Seeed 1.14" IPS panels, just a different resolution and
+// portrait origin.  Values mirror the ESP-IDF product `can_console_display.c`
+// config defaults:
+//   color_order_bgr = false  -> rgbOrder 0x00 (RGB)
+//   invert_colors   = true   -> invert = true  (INVON)
+// The panel reports in portrait 240x320 with no source/gate offset, so no
+// initialRotation is set (the driver's 240x320 path uses colstart/rowstart 0).
+struct Config_XIAO_Console_CAN {
+    using Driver = Driver_ST7789;
+    using Panel  = Panel_TFT;
+    static constexpr uint16_t width      = 240;
+    static constexpr uint16_t height     = 320;
+    static constexpr uint8_t  colorDepth = 16;
+    static constexpr uint8_t  rgbOrder   = 0x00;  // ST7789 RGB (bsp BGR=false)
+    static constexpr bool     invert     = true;  // INVON (bsp invert=true)
 };
 
 #endif // SEEED_GFX_SEEED_PANEL_CONFIGS_H

@@ -22,7 +22,7 @@
 #include "board/boards/XIAO_Console_CAN_Board.h"
 #include "driver/tft/Driver_ST7789.h"
 #include "panel/Panel_TFT.h"
-#include "panel/configs/XIAO_Console_CAN_Configs.h"
+#include "panel/configs/Seeed_Panel_Configs.h"
 #include "touch/Touch_GT911.h"
 
 // Panel is the CAN console's fixed ST7789 240x320.

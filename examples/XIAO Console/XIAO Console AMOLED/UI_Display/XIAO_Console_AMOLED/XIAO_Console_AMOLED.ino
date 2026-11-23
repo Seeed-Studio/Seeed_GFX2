@@ -24,7 +24,7 @@
 #include "board/boards/XIAO_AMOLED_Seeed_Board.h"
 #include "driver/tft/Driver_CO5300.h"
 #include "panel/Panel_TFT.h"
-#include "panel/configs/XIAO_AMOLED_Configs.h"
+#include "panel/configs/Seeed_Panel_Configs.h"
 #include "touch/Touch_CST820.h"
 #include "touch/Touch_CST9217.h"
 
