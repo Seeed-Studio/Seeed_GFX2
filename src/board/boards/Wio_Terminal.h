@@ -15,19 +15,38 @@
 #include "../configs/BoardConfig.h"
 #include <new>
 
-// Wio Terminal LCD pin definitions (from ATSAMD51 board package)
-// Provide fallbacks when compiling for other platforms
-#ifndef LCD_SS_PIN
-  #define LCD_SS_PIN   A4   // CS
-#endif
-#ifndef LCD_DC
-  #define LCD_DC       A3   // DC
-#endif
-#ifndef LCD_RESET
-  #define LCD_RESET    A5   // RST
-#endif
-#ifndef LCD_BACKLIGHT
-  #define LCD_BACKLIGHT A2  // BL
+// Wio Terminal LCD pin definitions (from ATSAMD51 board package).
+// The Seeed SAMD core predefines LCD_* on an actual Wio Terminal build; the
+// #ifndef fallbacks cover older cores.  On any other target this header is only
+// compiled for the product catalog, where those pins don't exist, so fall back
+// to -1 rather than the SAMD analog aliases A2..A5 (which are missing on e.g.
+// ESP32-C5/C6 and would break the build).
+#if defined(ARDUINO_WIO_TERMINAL)
+  #ifndef LCD_SS_PIN
+    #define LCD_SS_PIN   A4   // CS
+  #endif
+  #ifndef LCD_DC
+    #define LCD_DC       A3   // DC
+  #endif
+  #ifndef LCD_RESET
+    #define LCD_RESET    A5   // RST
+  #endif
+  #ifndef LCD_BACKLIGHT
+    #define LCD_BACKLIGHT A2  // BL
+  #endif
+#else
+  #ifndef LCD_SS_PIN
+    #define LCD_SS_PIN   (-1)
+  #endif
+  #ifndef LCD_DC
+    #define LCD_DC       (-1)
+  #endif
+  #ifndef LCD_RESET
+    #define LCD_RESET    (-1)
+  #endif
+  #ifndef LCD_BACKLIGHT
+    #define LCD_BACKLIGHT (-1)
+  #endif
 #endif
 #ifndef LCD_MISO_PIN
   #ifdef PIN_SPI3_MISO
